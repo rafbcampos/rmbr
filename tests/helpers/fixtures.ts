@@ -1,4 +1,5 @@
 import type { DrizzleDatabase } from '../../src/core/drizzle.ts';
+import { TodoStatus, GoalStatus, StudyStatus } from '../../src/core/types.ts';
 import { todos } from '../../src/modules/todo/drizzle-schema.ts';
 import { kudos } from '../../src/modules/kudos/drizzle-schema.ts';
 import { goals } from '../../src/modules/goals/drizzle-schema.ts';
@@ -68,7 +69,7 @@ export function insertTodo(db: DrizzleDatabase, fixture: TodoFixture): number {
     .values({
       raw_input: fixture.raw_input,
       title: fixture.title ?? null,
-      status: fixture.status ?? 'sketch',
+      status: fixture.status ?? TodoStatus.Sketch,
       priority: fixture.priority ?? null,
       due_date: fixture.due_date ?? null,
       goal_id: fixture.goal_id ?? null,
@@ -100,7 +101,7 @@ export function insertGoal(db: DrizzleDatabase, fixture: GoalFixture): number {
     .values({
       raw_input: fixture.raw_input,
       title: fixture.title ?? null,
-      status: fixture.status ?? 'draft',
+      status: fixture.status ?? GoalStatus.Draft,
       quarter: fixture.quarter ?? null,
       year: fixture.year ?? null,
       kpis: fixture.kpis ?? '[]',
@@ -131,7 +132,7 @@ export function insertStudyTopic(db: DrizzleDatabase, fixture: StudyTopicFixture
     .values({
       raw_input: fixture.raw_input,
       title: fixture.title ?? null,
-      status: fixture.status ?? 'queued',
+      status: fixture.status ?? StudyStatus.Queued,
       domain: fixture.domain ?? null,
       notes: fixture.notes ?? '[]',
       resources: fixture.resources ?? '[]',
