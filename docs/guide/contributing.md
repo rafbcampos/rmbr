@@ -13,6 +13,8 @@ cd rmbr
 bun install
 ```
 
+`bun install` automatically registers the `rmbr` command on your PATH via `bun link`.
+
 ## Development Commands
 
 | Command              | Description                                          |

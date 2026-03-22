@@ -22,14 +22,14 @@ Add the following to your `claude_desktop_config.json` file:
 {
   "mcpServers": {
     "rmbr": {
-      "command": "bun",
-      "args": ["run", "/path/to/rmbr/bin/rmbr.ts", "mcp"]
+      "command": "rmbr",
+      "args": ["mcp"]
     }
   }
 }
 ```
 
-Replace `/path/to/rmbr` with the absolute path to your rmbr installation.
+This works because `bun install` automatically registers the `rmbr` command on your PATH via `bun link`.
 
 The config file location depends on your platform:
 
@@ -45,8 +45,8 @@ For Claude Code, add the MCP server to your `.claude/settings.json`:
 {
   "mcpServers": {
     "rmbr": {
-      "command": "bun",
-      "args": ["run", "/path/to/rmbr/bin/rmbr.ts", "mcp"],
+      "command": "rmbr",
+      "args": ["mcp"],
       "type": "stdio"
     }
   }

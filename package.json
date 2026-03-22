@@ -16,7 +16,8 @@
     "check": "bun run typecheck && bun run lint && bun run format && bun run test",
     "docs:dev": "vitepress dev",
     "docs:build": "vitepress build",
-    "docs:preview": "vitepress preview"
+    "docs:preview": "vitepress preview",
+    "postinstall": "bun link"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",

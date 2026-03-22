@@ -22,15 +22,17 @@ git clone <repo-url> && cd rmbr
 bun install
 ```
 
+`bun install` automatically registers the `rmbr` command on your PATH via `bun link`, so you can use it from anywhere:
+
 ### CLI
 
 ```sh
-bun run rmbr todo add "Fix the login bug"
-bun run rmbr goal add "Ship the new onboarding flow"
-bun run rmbr kudos add "Alice helped debug the auth issue"
-bun run rmbr til add "You can use branded types in TypeScript for type-safe IDs"
-bun run rmbr study add "Distributed consensus algorithms"
-bun run rmbr tag add "work" todo 1
+rmbr todo add "Fix the login bug"
+rmbr goal add "Ship the new onboarding flow"
+rmbr kudos add "Alice helped debug the auth issue"
+rmbr til add "You can use branded types in TypeScript for type-safe IDs"
+rmbr study add "Distributed consensus algorithms"
+rmbr tag add "work" todo 1
 ```
 
 ### MCP Server
@@ -38,7 +40,7 @@ bun run rmbr tag add "work" todo 1
 Start the MCP server for use with AI assistants:
 
 ```sh
-bun run rmbr mcp
+rmbr mcp
 ```
 
 Claude Desktop configuration (`claude_desktop_config.json`):
@@ -47,8 +49,8 @@ Claude Desktop configuration (`claude_desktop_config.json`):
 {
   "mcpServers": {
     "rmbr": {
-      "command": "bun",
-      "args": ["run", "rmbr", "mcp"]
+      "command": "rmbr",
+      "args": ["mcp"]
     }
   }
 }
@@ -153,7 +155,7 @@ tag show <entity_type> <id>      Show tags for an entity
 
 ## MCP Tools
 
-When running in MCP mode (`bun run rmbr mcp`), every module exposes its operations as MCP tools. AI assistants can create, list, update, enrich, and transition entities through the standard Model Context Protocol. Create tools accept enrichment fields directly, enabling single-step fully enriched entity creation.
+When running in MCP mode (`rmbr mcp`), every module exposes its operations as MCP tools. AI assistants can create, list, update, enrich, and transition entities through the standard Model Context Protocol. Create tools accept enrichment fields directly, enabling single-step fully enriched entity creation.
 
 ## Development
 

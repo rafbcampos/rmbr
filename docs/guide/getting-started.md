@@ -18,13 +18,15 @@ cd rmbr
 bun install
 ```
 
+`bun install` automatically registers the `rmbr` command on your PATH via `bun link`, so you can use it from anywhere in your terminal.
+
 ## First Run
 
 Create your first todo and list it:
 
 ```bash
-bun run rmbr todo add "My first todo"
-bun run rmbr todo list
+rmbr todo add "My first todo"
+rmbr todo list
 ```
 
 rmbr automatically creates its SQLite database at `~/.rmbr/rmbr.db` on first run. No configuration or setup is needed.
@@ -38,7 +40,7 @@ rmbr ships with seven built-in modules. Here is one example command for each:
 Track tasks and action items.
 
 ```bash
-bun run rmbr todo add "Review pull request for auth service"
+rmbr todo add "Review pull request for auth service"
 ```
 
 ### Goals
@@ -46,7 +48,7 @@ bun run rmbr todo add "Review pull request for auth service"
 Capture objectives and attach STAR narratives for performance reviews.
 
 ```bash
-bun run rmbr goal add "Reduce API latency by 30%"
+rmbr goal add "Reduce API latency by 30%"
 ```
 
 ### Kudos
@@ -54,7 +56,7 @@ bun run rmbr goal add "Reduce API latency by 30%"
 Record praise and recognition you give or receive.
 
 ```bash
-bun run rmbr kudos add "Sara debugged the production outage in 20 minutes"
+rmbr kudos add "Sara debugged the production outage in 20 minutes"
 ```
 
 ### TIL (Today I Learned)
@@ -62,7 +64,7 @@ bun run rmbr kudos add "Sara debugged the production outage in 20 minutes"
 Store things you learn as searchable entries.
 
 ```bash
-bun run rmbr til add "Bun supports SQLite natively via bun:sqlite"
+rmbr til add "Bun supports SQLite natively via bun:sqlite"
 ```
 
 ### Study
@@ -70,7 +72,7 @@ bun run rmbr til add "Bun supports SQLite natively via bun:sqlite"
 Track topics you want to study or are actively studying.
 
 ```bash
-bun run rmbr study add "Distributed consensus algorithms"
+rmbr study add "Distributed consensus algorithms"
 ```
 
 ### Slack
@@ -78,7 +80,7 @@ bun run rmbr study add "Distributed consensus algorithms"
 Ingest and store important Slack messages for later reference.
 
 ```bash
-bun run rmbr slack ingest "Deploy went smoothly, zero downtime" --channel "#engineering"
+rmbr slack ingest "Deploy went smoothly, zero downtime" --channel "#engineering"
 ```
 
 ### Tags
@@ -86,7 +88,7 @@ bun run rmbr slack ingest "Deploy went smoothly, zero downtime" --channel "#engi
 Tag any entity from any module for cross-cutting organization.
 
 ```bash
-bun run rmbr tag add "urgent" todo 1
+rmbr tag add "urgent" todo 1
 ```
 
 ## Next Steps
