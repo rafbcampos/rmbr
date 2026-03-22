@@ -1,0 +1,56 @@
+import type { BaseEntity } from '../../core/types.ts';
+import { TodoStatus } from '../../core/types.ts';
+import { parseEnrichmentStatus } from '../../shared/type-guards.ts';
+import { ValidationError } from '../../core/errors.ts';
+
+export interface Todo extends BaseEntity {
+  readonly title: string | null;
+  readonly status: TodoStatus;
+  readonly priority: string | null;
+  readonly due_date: string | null;
+  readonly goal_id: number | null;
+}
+
+export interface TodoRow {
+  id: number;
+  raw_input: string;
+  title: string | null;
+  status: string;
+  priority: string | null;
+  due_date: string | null;
+  goal_id: number | null;
+  enrichment_status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+const TODO_STATUSES = new Set<string>(Object.values(TodoStatus));
+
+export function isTodoStatus(value: string): value is TodoStatus {
+  return TODO_STATUSES.has(value);
+}
+
+export function parseTodoStatus(value: string): TodoStatus {
+  if (isTodoStatus(value)) {
+    return value;
+  }
+  throw new ValidationError(`Invalid todo status: '${value}'`);
+}
+
+export function todoRowToEntity(row: TodoRow): Todo {
+  const status = isTodoStatus(row.status) ? row.status : TodoStatus.Sketch;
+  const enrichmentStatus = parseEnrichmentStatus(row.enrichment_status);
+
+  return {
+    id: row.id,
+    raw_input: row.raw_input,
+    title: row.title,
+    status,
+    priority: row.priority,
+    due_date: row.due_date,
+    goal_id: row.goal_id,
+    enrichment_status: enrichmentStatus,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}

@@ -1,0 +1,96 @@
+# Getting Started
+
+## Prerequisites
+
+rmbr runs on [Bun](https://bun.sh), a fast JavaScript runtime. Install Bun before proceeding:
+
+```bash
+curl -fsSL https://bun.sh/install | bash
+```
+
+## Installation
+
+Clone the repository and install dependencies:
+
+```bash
+git clone https://github.com/rafbcampos/rmbr.git
+cd rmbr
+bun install
+```
+
+## First Run
+
+Create your first todo and list it:
+
+```bash
+bun run rmbr todo add "My first todo"
+bun run rmbr todo list
+```
+
+rmbr automatically creates its SQLite database at `~/.rmbr/rmbr.db` on first run. No configuration or setup is needed.
+
+## Quick Tour of Modules
+
+rmbr ships with seven built-in modules. Here is one example command for each:
+
+### Todos
+
+Track tasks and action items.
+
+```bash
+bun run rmbr todo add "Review pull request for auth service"
+```
+
+### Goals
+
+Capture objectives and attach STAR narratives for performance reviews.
+
+```bash
+bun run rmbr goal add "Reduce API latency by 30%"
+```
+
+### Kudos
+
+Record praise and recognition you give or receive.
+
+```bash
+bun run rmbr kudos add "Sara debugged the production outage in 20 minutes"
+```
+
+### TIL (Today I Learned)
+
+Store things you learn as searchable entries.
+
+```bash
+bun run rmbr til add "Bun supports SQLite natively via bun:sqlite"
+```
+
+### Study
+
+Track topics you want to study or are actively studying.
+
+```bash
+bun run rmbr study add "Distributed consensus algorithms"
+```
+
+### Slack
+
+Ingest and store important Slack messages for later reference.
+
+```bash
+bun run rmbr slack ingest "Deploy went smoothly, zero downtime" --channel "#engineering"
+```
+
+### Tags
+
+Tag any entity from any module for cross-cutting organization.
+
+```bash
+bun run rmbr tag add "urgent" todo 1
+```
+
+## Next Steps
+
+- [CLI Usage](/guide/cli-usage) — Full reference for all commands and options
+- [MCP Setup](/guide/mcp-setup) — Connect rmbr to your AI assistant via MCP
+- [Core Concepts](/guide/core-concepts) — Understand the architecture behind rmbr
