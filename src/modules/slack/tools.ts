@@ -1,26 +1,12 @@
 import { z } from 'zod';
 import type { McpToolDefinition, ToolArgs, ToolResult } from '../../core/module-contract.ts';
 import { ENRICHMENT_PROMPTS } from '../../core/prompts.ts';
+import { ValidationError } from '../../core/errors.ts';
+import { getString, getNumber } from '../../shared/tool-args.ts';
+import { entityToToolResult, paginatedToToolResult } from '../../shared/tool-result.ts';
 import type { SlackFilters } from './service.ts';
 import { SlackService } from './service.ts';
 import { isSlackSentiment } from './types.ts';
-
-function slackMessageToToolResult(msg: ReturnType<typeof SlackService.getById>): ToolResult {
-  return {
-    id: msg.id,
-    raw_content: msg.raw_content,
-    channel: msg.channel,
-    sender: msg.sender,
-    message_ts: msg.message_ts,
-    sentiment: msg.sentiment,
-    processed: msg.processed,
-    todo_id: msg.todo_id,
-    goal_id: msg.goal_id,
-    enrichment_status: msg.enrichment_status,
-    created_at: msg.created_at,
-    updated_at: msg.updated_at,
-  };
-}
 
 export const slackTools: readonly McpToolDefinition[] = [
   {
@@ -33,14 +19,12 @@ export const slackTools: readonly McpToolDefinition[] = [
       message_ts: z.string().optional().describe('Message timestamp'),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
-      if (typeof args.raw_content !== 'string') {
-        throw new Error('raw_content must be a string');
-      }
+      const rawContent = getString(args, 'raw_content');
       const channel = typeof args.channel === 'string' ? args.channel : undefined;
       const sender = typeof args.sender === 'string' ? args.sender : undefined;
       const messageTs = typeof args.message_ts === 'string' ? args.message_ts : undefined;
-      const msg = SlackService.ingest(db, args.raw_content, channel, sender, messageTs);
-      return slackMessageToToolResult(msg);
+      const msg = SlackService.ingest(db, rawContent, channel, sender, messageTs);
+      return entityToToolResult(msg);
     },
   },
   {
@@ -53,6 +37,7 @@ export const slackTools: readonly McpToolDefinition[] = [
         .enum(['positive', 'negative', 'neutral'])
         .optional()
         .describe('Filter by sentiment'),
+      include_deleted: z.boolean().optional().describe('Include soft-deleted messages'),
       page: z.number().optional().describe('Page number'),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
@@ -62,16 +47,10 @@ export const slackTools: readonly McpToolDefinition[] = [
         ...(typeof args.sentiment === 'string' && isSlackSentiment(args.sentiment)
           ? { sentiment: args.sentiment }
           : {}),
+        ...(args.include_deleted === true ? { includeDeleted: true } : {}),
       };
       const page = typeof args.page === 'number' ? args.page : 1;
-      const result = SlackService.list(db, filters, { page, pageSize: 20 });
-      return {
-        total: result.total,
-        page: result.page,
-        pageSize: result.pageSize,
-        totalPages: result.totalPages,
-        data: result.data.map(slackMessageToToolResult),
-      };
+      return paginatedToToolResult(SlackService.list(db, filters, { page, pageSize: 20 }));
     },
   },
   {
@@ -81,11 +60,7 @@ export const slackTools: readonly McpToolDefinition[] = [
       id: z.number().describe('The message ID'),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
-      if (typeof args.id !== 'number') {
-        throw new Error('id must be a number');
-      }
-      const msg = SlackService.getById(db, args.id);
-      return slackMessageToToolResult(msg);
+      return entityToToolResult(SlackService.getById(db, getNumber(args, 'id')));
     },
   },
   {
@@ -96,14 +71,11 @@ export const slackTools: readonly McpToolDefinition[] = [
       sentiment: z.enum(['positive', 'negative', 'neutral']).describe('The sentiment value'),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
-      if (typeof args.id !== 'number') {
-        throw new Error('id must be a number');
+      const sentimentStr = getString(args, 'sentiment');
+      if (!isSlackSentiment(sentimentStr)) {
+        throw new ValidationError(`Invalid sentiment: '${sentimentStr}'`);
       }
-      if (typeof args.sentiment !== 'string' || !isSlackSentiment(args.sentiment)) {
-        throw new Error('sentiment must be positive, negative, or neutral');
-      }
-      const msg = SlackService.setSentiment(db, args.id, args.sentiment);
-      return slackMessageToToolResult(msg);
+      return entityToToolResult(SlackService.setSentiment(db, getNumber(args, 'id'), sentimentStr));
     },
   },
   {
@@ -114,14 +86,9 @@ export const slackTools: readonly McpToolDefinition[] = [
       todo_id: z.number().describe('The todo ID'),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
-      if (typeof args.id !== 'number') {
-        throw new Error('id must be a number');
-      }
-      if (typeof args.todo_id !== 'number') {
-        throw new Error('todo_id must be a number');
-      }
-      const msg = SlackService.linkTodo(db, args.id, args.todo_id);
-      return slackMessageToToolResult(msg);
+      return entityToToolResult(
+        SlackService.linkTodo(db, getNumber(args, 'id'), getNumber(args, 'todo_id')),
+      );
     },
   },
   {
@@ -132,14 +99,9 @@ export const slackTools: readonly McpToolDefinition[] = [
       goal_id: z.number().describe('The goal ID'),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
-      if (typeof args.id !== 'number') {
-        throw new Error('id must be a number');
-      }
-      if (typeof args.goal_id !== 'number') {
-        throw new Error('goal_id must be a number');
-      }
-      const msg = SlackService.linkGoal(db, args.id, args.goal_id);
-      return slackMessageToToolResult(msg);
+      return entityToToolResult(
+        SlackService.linkGoal(db, getNumber(args, 'id'), getNumber(args, 'goal_id')),
+      );
     },
   },
   {
@@ -149,11 +111,32 @@ export const slackTools: readonly McpToolDefinition[] = [
       id: z.number().describe('The message ID'),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
-      if (typeof args.id !== 'number') {
-        throw new Error('id must be a number');
-      }
-      const msg = SlackService.markProcessed(db, args.id);
-      return slackMessageToToolResult(msg);
+      return entityToToolResult(SlackService.markProcessed(db, getNumber(args, 'id')));
+    },
+  },
+  {
+    name: 'rmbr_slack_delete',
+    description: 'Soft-delete a Slack message',
+    schema: {
+      id: z.number().describe('The message ID'),
+    },
+    annotations: { destructiveHint: true },
+    handler: async (db, args: ToolArgs): Promise<ToolResult> => {
+      const id = getNumber(args, 'id');
+      SlackService.softDeleteEntity(db, id);
+      return { id, deleted: true };
+    },
+  },
+  {
+    name: 'rmbr_slack_restore',
+    description: 'Restore a soft-deleted Slack message',
+    schema: {
+      id: z.number().describe('The message ID'),
+    },
+    handler: async (db, args: ToolArgs): Promise<ToolResult> => {
+      const id = getNumber(args, 'id');
+      SlackService.restoreEntity(db, id);
+      return entityToToolResult(SlackService.getById(db, id));
     },
   },
 ];

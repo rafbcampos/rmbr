@@ -94,9 +94,24 @@ service layer.
 
 ## Service Layer
 
-Each module has a `service.ts` containing all business logic — status transitions, enrichment,
-queries, and validation. Both CLI commands and MCP tools delegate to the same service
-functions, keeping behavior consistent across interfaces.
+Each module has a `service.ts` that exports a named service object (e.g., `TodoService`, `KudosService`) containing all business logic — status transitions, enrichment, queries, and validation. Both CLI commands and MCP tools delegate to the same service object, keeping behavior consistent across interfaces.
+
+## Shared Helpers
+
+Common cross-module logic lives in `src/shared/`:
+
+- **`tool-result.ts`** — Generic `entityToToolResult<T>` and `paginatedToToolResult<T>` using the `ToolSerializable` interface constraint for type-safe entity-to-MCP-result conversion.
+- **`tool-args.ts`** — `getString`, `getNumber`, `extractFields`, and `extractPagination` for type-safe MCP tool argument handling.
+- **`enrichment.ts`** — `enrichEntity` and `toUpdateRecord` for updating entity fields and setting enrichment status.
+- **`soft-delete.ts`** — `softDelete`, `restore`, and `notDeletedCondition` for the shared soft-delete pattern.
+- **`transition.ts`** — `handleTransition` for validated state machine transitions.
+- **`list-with-pagination.ts`** — `listWithPagination` for paginated Drizzle queries with SQL conditions.
+
+## Skills
+
+Skills are bundled AI workflow guides stored in `src/skills/*/SKILL.md`. Each skill is a markdown file with frontmatter (`name`, `description`) and a step-by-step workflow that references specific MCP tools.
+
+Skills are installed into Claude Code via `rmbr skill install`, which copies them to `~/.claude/commands/` as `/rmbr-<name>` slash commands. Skills are not modules — they require no database, no migrations, and no service layer. They are static workflow documentation that Claude follows when invoked.
 
 ## Dual Interface
 

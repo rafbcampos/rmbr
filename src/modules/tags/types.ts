@@ -1,3 +1,5 @@
+import type { ToolSerializable } from '../../core/types.ts';
+
 declare const brand: unique symbol;
 
 type Brand<T, B extends string> = T & { readonly [brand]: B };
@@ -21,13 +23,13 @@ export function isEntityType(value: string): value is EntityType {
   return ENTITY_TYPES.has(value);
 }
 
-export interface Tag {
+export interface Tag extends ToolSerializable {
   readonly id: number;
   readonly name: string;
   readonly created_at: string;
 }
 
-export interface EntityTag {
+export interface EntityTag extends ToolSerializable {
   readonly id: number;
   readonly tag_id: number;
   readonly entity_type: EntityType;

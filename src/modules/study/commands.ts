@@ -1,7 +1,7 @@
 import type { Command } from 'commander';
 import type { DrizzleDatabase } from '../../core/drizzle.ts';
 import { StudyStatus } from '../../core/types.ts';
-import * as StudyService from './service.ts';
+import { StudyService } from './service.ts';
 import { parseStudyStatus } from './types.ts';
 import { parseStringArray } from '../../shared/json-array.ts';
 import { parseId } from '../../shared/validation.ts';
@@ -22,27 +22,38 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
     .description('List study topics')
     .option('--status <status>', 'Filter by status')
     .option('--domain <domain>', 'Filter by domain')
+    .option('--include-deleted', 'Include soft-deleted study topics')
     .option('--page <n>', 'Page number', '1')
     .option('--page-size <n>', 'Page size', '20')
-    .action((opts: { status?: string; domain?: string; page: string; pageSize: string }) => {
-      const filters: StudyService.StudyFilters = {};
-      const filtersToPass: StudyService.StudyFilters = {
-        ...filters,
-        ...(opts.status ? { status: parseStudyStatus(opts.status) } : {}),
-        ...(opts.domain ? { domain: opts.domain } : {}),
-      };
-      const hasFilters = filtersToPass.status !== undefined || filtersToPass.domain !== undefined;
-      const result = StudyService.list(db, hasFilters ? filtersToPass : undefined, {
-        page: parseId(opts.page, 'page'),
-        pageSize: parseId(opts.pageSize, 'pageSize'),
-      });
-      console.log(
-        `Study topics (page ${result.page}/${result.totalPages}, total: ${result.total}):`,
-      );
-      for (const t of result.data) {
-        console.log(`  #${t.id} [${t.status}] ${t.title ?? t.raw_input}`);
-      }
-    });
+    .action(
+      (opts: {
+        status?: string;
+        domain?: string;
+        includeDeleted?: boolean;
+        page: string;
+        pageSize: string;
+      }) => {
+        const filtersToPass = {
+          ...(opts.status ? { status: parseStudyStatus(opts.status) } : {}),
+          ...(opts.domain ? { domain: opts.domain } : {}),
+          ...(opts.includeDeleted === true ? { includeDeleted: true } : {}),
+        };
+        const hasFilters =
+          filtersToPass.status !== undefined ||
+          filtersToPass.domain !== undefined ||
+          filtersToPass.includeDeleted !== undefined;
+        const result = StudyService.list(db, hasFilters ? filtersToPass : undefined, {
+          page: parseId(opts.page, 'page'),
+          pageSize: parseId(opts.pageSize, 'pageSize'),
+        });
+        console.log(
+          `Study topics (page ${result.page}/${result.totalPages}, total: ${result.total}):`,
+        );
+        for (const t of result.data) {
+          console.log(`  #${t.id} [${t.status}] ${t.title ?? t.raw_input}`);
+        }
+      },
+    );
 
   study
     .command('show <id>')
@@ -119,5 +130,21 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
         goal_id: opts.goalId ? parseId(opts.goalId, 'goal') : undefined,
       });
       console.log(`Enriched study topic #${t.id}: ${t.title}`);
+    });
+
+  study
+    .command('delete <id>')
+    .description('Soft-delete a study topic')
+    .action((id: string) => {
+      StudyService.softDeleteEntity(db, parseId(id, 'study topic'));
+      console.log(`Study topic #${id} soft-deleted`);
+    });
+
+  study
+    .command('restore <id>')
+    .description('Restore a soft-deleted study topic')
+    .action((id: string) => {
+      StudyService.restoreEntity(db, parseId(id, 'study topic'));
+      console.log(`Study topic #${id} restored`);
     });
 }

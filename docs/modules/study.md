@@ -49,18 +49,20 @@ Accumulate notes and resource URLs over time. Each add appends to the respective
 
 For full syntax details, see the [CLI Reference](/guide/cli-usage).
 
-| Command               | Description                              |
-| --------------------- | ---------------------------------------- |
-| `rmbr study add`      | Create a new study topic from raw input  |
-| `rmbr study list`     | List topics, optionally filter by status |
-| `rmbr study show`     | Show a single topic by ID                |
-| `rmbr study start`    | Transition a topic to `in_progress`      |
-| `rmbr study done`     | Mark a topic as `completed`              |
-| `rmbr study park`     | Park an in-progress topic                |
-| `rmbr study note`     | Append a note to a topic                 |
-| `rmbr study resource` | Append a resource URL to a topic         |
-| `rmbr study next`     | Show the next queued topic (FIFO)        |
-| `rmbr study enrich`   | Enrich a topic with structured fields    |
+| Command               | Description                                                    |
+| --------------------- | -------------------------------------------------------------- |
+| `rmbr study add`      | Create a new study topic from raw input                        |
+| `rmbr study list`     | List topics, optionally filter by status (`--include-deleted`) |
+| `rmbr study show`     | Show a single topic by ID                                      |
+| `rmbr study start`    | Transition a topic to `in_progress`                            |
+| `rmbr study done`     | Mark a topic as `completed`                                    |
+| `rmbr study park`     | Park an in-progress topic                                      |
+| `rmbr study delete`   | Soft-delete a study topic (hidden from lists by default)       |
+| `rmbr study restore`  | Restore a soft-deleted study topic                             |
+| `rmbr study note`     | Append a note to a topic                                       |
+| `rmbr study resource` | Append a resource URL to a topic                               |
+| `rmbr study next`     | Show the next queued topic (FIFO)                              |
+| `rmbr study enrich`   | Enrich a topic with structured fields                          |
 
 ## MCP Tools
 
@@ -70,6 +72,8 @@ For full syntax details, see the [CLI Reference](/guide/cli-usage).
 | `rmbr_study_list`         | List topics with optional status and enrichment filters |
 | `rmbr_study_get`          | Get a single topic by ID                                |
 | `rmbr_study_transition`   | Transition a topic to a new status                      |
+| `rmbr_study_delete`       | Soft-delete a study topic                               |
+| `rmbr_study_restore`      | Restore a soft-deleted study topic                      |
 | `rmbr_study_add_note`     | Append a note to a topic                                |
 | `rmbr_study_add_resource` | Append a resource URL to a topic                        |
 | `rmbr_study_next`         | Get the next queued topic (FIFO)                        |

@@ -27,6 +27,7 @@ export interface SlackMessageRow {
   enrichment_status: string;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
 }
 
 const SLACK_SENTIMENTS = new Set<string>(Object.values(SlackSentiment));
@@ -56,5 +57,6 @@ export function toSlackMessage(row: SlackMessageRow): SlackMessage {
     enrichment_status: parseEnrichmentStatus(row.enrichment_status),
     created_at: row.created_at,
     updated_at: row.updated_at,
+    deleted_at: row.deleted_at,
   };
 }

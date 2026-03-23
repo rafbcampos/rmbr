@@ -26,18 +26,24 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
     .option('--channel <channel>', 'Filter by channel')
     .option('--processed', 'Filter by processed status')
     .option('--sentiment <sentiment>', 'Filter by sentiment')
+    .option('--include-deleted', 'Include soft-deleted messages')
     .option('--page <page>', 'Page number', '1')
     .action(
-      (opts: { channel?: string; processed?: boolean; sentiment?: string; page?: string }) => {
-        const filters: SlackFilters = {};
-        const filterBuilder: SlackFilters = {
+      (opts: {
+        channel?: string;
+        processed?: boolean;
+        sentiment?: string;
+        includeDeleted?: boolean;
+        page?: string;
+      }) => {
+        const filters: SlackFilters = {
           ...(opts.channel !== undefined ? { channel: opts.channel } : {}),
           ...(opts.processed === true ? { processed: 1 } : {}),
           ...(opts.sentiment !== undefined && isSlackSentiment(opts.sentiment)
             ? { sentiment: opts.sentiment }
             : {}),
+          ...(opts.includeDeleted === true ? { includeDeleted: true } : {}),
         };
-        Object.assign(filters, filterBuilder);
         const page = parseId(opts.page ?? '1', 'page');
         const result = SlackService.list(db, filters, { page, pageSize: 20 });
         console.log(JSON.stringify(result, null, 2));
@@ -93,5 +99,23 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
     .action((id: string) => {
       const result = SlackService.markProcessed(db, parseId(id, 'slack message'));
       console.log(`Slack message ${result.id} marked as processed`);
+    });
+
+  slack
+    .command('delete')
+    .description('Soft-delete a Slack message')
+    .argument('<id>', 'Message ID')
+    .action((id: string) => {
+      SlackService.softDeleteEntity(db, parseId(id, 'slack message'));
+      console.log(`Slack message #${id} soft-deleted`);
+    });
+
+  slack
+    .command('restore')
+    .description('Restore a soft-deleted Slack message')
+    .argument('<id>', 'Message ID')
+    .action((id: string) => {
+      SlackService.restoreEntity(db, parseId(id, 'slack message'));
+      console.log(`Slack message #${id} restored`);
     });
 }

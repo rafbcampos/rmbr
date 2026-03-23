@@ -39,4 +39,10 @@ export const slackMigrations: readonly Migration[] = [
 UPDATE slack_messages SET raw_input = raw_content WHERE raw_input = ''`,
     down: 'ALTER TABLE slack_messages DROP COLUMN raw_input',
   },
+  {
+    version: 604,
+    description: 'Add deleted_at column to slack_messages',
+    up: 'ALTER TABLE slack_messages ADD COLUMN deleted_at TEXT DEFAULT NULL',
+    down: 'SELECT 1 -- SQLite does not support DROP COLUMN easily',
+  },
 ];

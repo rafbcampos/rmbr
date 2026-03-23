@@ -24,6 +24,7 @@ export interface StudyTopicRow {
   enrichment_status: string;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
 }
 
 const STUDY_STATUSES = new Set<string>(Object.values(StudyStatus));
@@ -55,5 +56,6 @@ export function toStudyTopic(row: StudyTopicRow): StudyTopic {
     enrichment_status: enrichmentStatus,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    deleted_at: row.deleted_at,
   };
 }

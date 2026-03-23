@@ -16,4 +16,5 @@ export const todos = sqliteTable('todos', {
   updated_at: text('updated_at')
     .notNull()
     .default(sql`(datetime('now'))`),
+  deleted_at: text('deleted_at'),
 });

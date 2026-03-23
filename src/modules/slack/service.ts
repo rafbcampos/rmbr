@@ -1,16 +1,18 @@
-import { eq, sql, count, desc, and, type SQL } from 'drizzle-orm';
+import { eq, sql, desc, type SQL } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../core/drizzle.ts';
 import type { PaginatedResult, PaginationParams, SlackSentiment } from '../../core/types.ts';
 import { NotFoundError } from '../../core/errors.ts';
-import { DEFAULT_PAGINATION, paginateResults } from '../../shared/pagination.ts';
+import { listWithPagination } from '../../shared/list-with-pagination.ts';
+import { softDelete, restore, notDeletedCondition } from '../../shared/soft-delete.ts';
 import type { SlackMessage } from './types.ts';
 import { toSlackMessage } from './types.ts';
 import { slackMessages } from './drizzle-schema.ts';
 
 export interface SlackFilters {
-  readonly channel?: string;
-  readonly processed?: number;
-  readonly sentiment?: SlackSentiment;
+  readonly channel?: string | undefined;
+  readonly processed?: number | undefined;
+  readonly sentiment?: SlackSentiment | undefined;
+  readonly includeDeleted?: boolean | undefined;
 }
 
 export const SlackService = {
@@ -38,9 +40,13 @@ export const SlackService = {
   list(
     db: DrizzleDatabase,
     filters: SlackFilters = {},
-    pagination: PaginationParams = DEFAULT_PAGINATION,
+    pagination?: PaginationParams,
   ): PaginatedResult<SlackMessage> {
     const conditions: SQL[] = [];
+
+    if (filters.includeDeleted !== true) {
+      conditions.push(notDeletedCondition(slackMessages.deleted_at));
+    }
 
     if (filters.channel !== undefined) {
       conditions.push(eq(slackMessages.channel, filters.channel));
@@ -52,22 +58,12 @@ export const SlackService = {
       conditions.push(eq(slackMessages.sentiment, filters.sentiment));
     }
 
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-    const total =
-      db.select({ value: count() }).from(slackMessages).where(whereClause).get()?.value ?? 0;
-
-    const offset = (pagination.page - 1) * pagination.pageSize;
-    const rows = db
-      .select()
-      .from(slackMessages)
-      .where(whereClause)
-      .orderBy(desc(slackMessages.created_at))
-      .limit(pagination.pageSize)
-      .offset(offset)
-      .all();
-
-    return paginateResults({ data: rows.map(toSlackMessage), total }, pagination);
+    return listWithPagination(
+      db,
+      { from: slackMessages, orderBy: desc(slackMessages.created_at), toEntity: toSlackMessage },
+      conditions,
+      pagination,
+    );
   },
 
   getById(db: DrizzleDatabase, id: number): SlackMessage {
@@ -112,5 +108,13 @@ export const SlackService = {
       .where(eq(slackMessages.id, id))
       .run();
     return SlackService.getById(db, id);
+  },
+
+  softDeleteEntity(db: DrizzleDatabase, id: number): void {
+    softDelete(db, slackMessages, 'slack_messages', id);
+  },
+
+  restoreEntity(db: DrizzleDatabase, id: number): void {
+    restore(db, slackMessages, 'slack_messages', id);
   },
 };

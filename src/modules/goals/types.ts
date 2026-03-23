@@ -1,4 +1,4 @@
-import type { BaseEntity } from '../../core/types.ts';
+import type { BaseEntity, ToolSerializable } from '../../core/types.ts';
 import { GoalStatus, Quarter } from '../../core/types.ts';
 import { parseEnrichmentStatus } from '../../shared/type-guards.ts';
 
@@ -10,7 +10,7 @@ export interface Goal extends BaseEntity {
   readonly kpis: string;
 }
 
-export interface StarNarrative {
+export interface StarNarrative extends ToolSerializable {
   readonly id: number;
   readonly goal_id: number;
   readonly situation: string;
@@ -21,7 +21,7 @@ export interface StarNarrative {
   readonly updated_at: string;
 }
 
-export interface QuarterlyReview {
+export interface QuarterlyReview extends ToolSerializable {
   readonly id: number;
   readonly quarter: Quarter;
   readonly year: number;
@@ -44,6 +44,7 @@ export interface GoalRow {
   enrichment_status: string;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
 }
 
 export interface StarNarrativeRow {
@@ -103,6 +104,7 @@ export function toGoal(row: GoalRow): Goal {
     enrichment_status: parseEnrichmentStatus(row.enrichment_status),
     created_at: row.created_at,
     updated_at: row.updated_at,
+    deleted_at: row.deleted_at,
   };
 }
 

@@ -174,4 +174,35 @@ describe('KudosService', () => {
       expect(enriched.updated_at).toBeDefined();
     });
   });
+
+  describe('soft-delete', () => {
+    it('excludes soft-deleted kudos from list by default', () => {
+      insertKudos(db, { raw_input: 'Active kudos' });
+      const id2 = insertKudos(db, { raw_input: 'Deleted kudos' });
+      KudosService.softDeleteEntity(db, id2);
+
+      const result = KudosService.list(db);
+      expect(result.total).toBe(1);
+      expect(result.data).toHaveLength(1);
+    });
+
+    it('includes soft-deleted kudos when includeDeleted is true', () => {
+      insertKudos(db, { raw_input: 'Active kudos' });
+      const id2 = insertKudos(db, { raw_input: 'Deleted kudos' });
+      KudosService.softDeleteEntity(db, id2);
+
+      const result = KudosService.list(db, { includeDeleted: true });
+      expect(result.total).toBe(2);
+      expect(result.data).toHaveLength(2);
+    });
+
+    it('soft-delete and restore round-trip', () => {
+      const id = insertKudos(db, { raw_input: 'Round-trip kudos' });
+      KudosService.softDeleteEntity(db, id);
+      expect(KudosService.list(db).total).toBe(0);
+
+      KudosService.restoreEntity(db, id);
+      expect(KudosService.list(db).total).toBe(1);
+    });
+  });
 });

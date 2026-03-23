@@ -6,6 +6,7 @@ import { goalsMigrations as goalMigrations } from '../../../src/modules/goals/sc
 import { kudosTools } from '../../../src/modules/kudos/tools.ts';
 import { KudosDirection, EnrichmentStatus } from '../../../src/core/types.ts';
 import { insertKudos, insertGoal } from '../../helpers/fixtures.ts';
+import { getDataArray } from '../../helpers/tool-result.ts';
 
 const findTool = (name: string) => {
   const tool = kudosTools.find(t => t.name === name);
@@ -81,7 +82,7 @@ describe('kudos tools', () => {
 
       expect(result.total).toBe(3);
       expect(result.page).toBe(1);
-      expect((result.data as unknown[]).length).toBe(3);
+      expect(getDataArray(result).length).toBe(3);
     });
 
     it('filters by direction', async () => {
@@ -93,7 +94,7 @@ describe('kudos tools', () => {
       const result = await tool.handler(db, { direction: KudosDirection.Received });
 
       expect(result.total).toBe(1);
-      const data = result.data as Array<Record<string, unknown>>;
+      const data = getDataArray(result);
       expect(data[0]?.raw_input).toBe('Received one');
     });
 
@@ -106,12 +107,12 @@ describe('kudos tools', () => {
       const page1 = await tool.handler(db, { page: 1 });
 
       expect(page1.total).toBe(25);
-      expect((page1.data as unknown[]).length).toBe(20);
+      expect(getDataArray(page1).length).toBe(20);
       expect(page1.pageSize).toBe(20);
       expect(page1.totalPages).toBe(2);
 
       const page2 = await tool.handler(db, { page: 2 });
-      expect((page2.data as unknown[]).length).toBe(5);
+      expect(getDataArray(page2).length).toBe(5);
     });
 
     it('returns empty result when no kudos exist', async () => {
@@ -119,7 +120,7 @@ describe('kudos tools', () => {
       const result = await tool.handler(db, {});
 
       expect(result.total).toBe(0);
-      expect((result.data as unknown[]).length).toBe(0);
+      expect(getDataArray(result).length).toBe(0);
     });
   });
 

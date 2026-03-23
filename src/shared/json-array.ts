@@ -1,5 +1,5 @@
 export function parseStringArray(json: string): string[] {
-  const parsed: unknown = JSON.parse(json);
+  const parsed = JSON.parse(json);
   if (!Array.isArray(parsed)) {
     return [];
   }

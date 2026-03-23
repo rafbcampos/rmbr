@@ -29,4 +29,10 @@ export const tilMigrations: readonly Migration[] = [
     up: `CREATE VIRTUAL TABLE til_fts USING fts5(title, content, domain, content='til', content_rowid='id')`,
     down: 'DROP TABLE IF EXISTS til_fts',
   },
+  {
+    version: 403,
+    description: 'Add deleted_at column to til',
+    up: 'ALTER TABLE til ADD COLUMN deleted_at TEXT DEFAULT NULL',
+    down: 'SELECT 1 -- SQLite does not support DROP COLUMN easily',
+  },
 ];

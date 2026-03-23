@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'bun:test';
 import type { DrizzleDatabase } from '../../../src/core/drizzle.ts';
 import { createTestDb } from '../../helpers/db.ts';
 import { goalsMigrations as migrations } from '../../../src/modules/goals/schema.ts';
-import * as GoalService from '../../../src/modules/goals/service.ts';
+import { GoalService } from '../../../src/modules/goals/service.ts';
 import { GoalStatus, Quarter, EnrichmentStatus } from '../../../src/core/types.ts';
 import { NotFoundError, InvalidTransitionError } from '../../../src/core/errors.ts';
 
@@ -314,6 +314,37 @@ describe('GoalService', () => {
 
       expect(updated.what_went_well).toBe('Updated');
       expect(updated.improvements).toBe('Updated');
+    });
+  });
+
+  describe('soft-delete', () => {
+    it('excludes soft-deleted goals from list by default', () => {
+      GoalService.create(db, 'Active goal');
+      const deleted = GoalService.create(db, 'Deleted goal');
+      GoalService.softDeleteEntity(db, deleted.id);
+
+      const result = GoalService.list(db);
+      expect(result.total).toBe(1);
+      expect(result.data).toHaveLength(1);
+    });
+
+    it('includes soft-deleted goals when includeDeleted is true', () => {
+      GoalService.create(db, 'Active goal');
+      const deleted = GoalService.create(db, 'Deleted goal');
+      GoalService.softDeleteEntity(db, deleted.id);
+
+      const result = GoalService.list(db, { includeDeleted: true });
+      expect(result.total).toBe(2);
+      expect(result.data).toHaveLength(2);
+    });
+
+    it('soft-delete and restore round-trip', () => {
+      const goal = GoalService.create(db, 'Round-trip goal');
+      GoalService.softDeleteEntity(db, goal.id);
+      expect(GoalService.list(db).total).toBe(0);
+
+      GoalService.restoreEntity(db, goal.id);
+      expect(GoalService.list(db).total).toBe(1);
     });
   });
 });

@@ -207,4 +207,35 @@ describe('TilService', () => {
       expect(enriched.updated_at).toBeDefined();
     });
   });
+
+  describe('soft-delete', () => {
+    it('excludes soft-deleted TIL entries from list by default', () => {
+      insertTil(db, { raw_input: 'Active TIL' });
+      const id2 = insertTil(db, { raw_input: 'Deleted TIL' });
+      TilService.softDeleteEntity(db, id2);
+
+      const result = TilService.list(db);
+      expect(result.total).toBe(1);
+      expect(result.data).toHaveLength(1);
+    });
+
+    it('includes soft-deleted TIL entries when includeDeleted is true', () => {
+      insertTil(db, { raw_input: 'Active TIL' });
+      const id2 = insertTil(db, { raw_input: 'Deleted TIL' });
+      TilService.softDeleteEntity(db, id2);
+
+      const result = TilService.list(db, { includeDeleted: true });
+      expect(result.total).toBe(2);
+      expect(result.data).toHaveLength(2);
+    });
+
+    it('soft-delete and restore round-trip', () => {
+      const id = insertTil(db, { raw_input: 'Round-trip TIL' });
+      TilService.softDeleteEntity(db, id);
+      expect(TilService.list(db).total).toBe(0);
+
+      TilService.restoreEntity(db, id);
+      expect(TilService.list(db).total).toBe(1);
+    });
+  });
 });

@@ -22,6 +22,8 @@ features:
     details: Use rmbr as an MCP server — your AI assistant can create, query, and manage all your data directly.
   - title: STAR Narratives
     details: Attach Situation-Task-Action-Result narratives to goals for performance reviews and quarterly reviews.
+  - title: AI Workflow Skills
+    details: Bundled slash commands for Claude Code — weekly standups, quarterly reviews, goal planning, Slack triage, and more.
   - title: Full-Text Search
     details: Search your TIL entries with full-text search. Filter any module by status, domain, or date.
   - title: Zero Config

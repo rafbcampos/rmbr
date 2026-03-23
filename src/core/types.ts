@@ -64,12 +64,17 @@ export const KudosDirection = {
 } as const;
 export type KudosDirection = (typeof KudosDirection)[keyof typeof KudosDirection];
 
-export interface BaseEntity {
+export interface ToolSerializable {
+  readonly [key: string]: string | number | boolean | null;
+}
+
+export interface BaseEntity extends ToolSerializable {
   readonly id: number;
   readonly raw_input: string;
   readonly enrichment_status: EnrichmentStatus;
   readonly created_at: string;
   readonly updated_at: string;
+  readonly deleted_at: string | null;
 }
 
 export interface PaginationParams {

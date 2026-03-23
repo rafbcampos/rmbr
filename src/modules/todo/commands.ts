@@ -1,7 +1,7 @@
 import type { Command } from 'commander';
 import type { DrizzleDatabase } from '../../core/drizzle.ts';
 import { TodoStatus } from '../../core/types.ts';
-import * as TodoService from './service.ts';
+import { TodoService } from './service.ts';
 import { parseTodoStatus } from './types.ts';
 import { parseId } from '../../shared/validation.ts';
 
@@ -20,19 +20,39 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
     .command('list')
     .description('List todos')
     .option('--status <status>', 'Filter by status')
+    .option('--overdue', 'Show overdue todos')
+    .option('--due-today', 'Show todos due today')
+    .option('--due-this-week', 'Show todos due this week')
+    .option('--include-deleted', 'Include soft-deleted todos')
     .option('--page <n>', 'Page number', '1')
     .option('--page-size <n>', 'Page size', '20')
-    .action((opts: { status?: string; page: string; pageSize: string }) => {
-      const filters = opts.status ? { status: parseTodoStatus(opts.status) } : undefined;
-      const result = TodoService.list(db, filters, {
-        page: parseId(opts.page, 'page'),
-        pageSize: parseId(opts.pageSize, 'pageSize'),
-      });
-      console.log(`Todos (page ${result.page}/${result.totalPages}, total: ${result.total}):`);
-      for (const t of result.data) {
-        console.log(`  #${t.id} [${t.status}] ${t.title ?? t.raw_input}`);
-      }
-    });
+    .action(
+      (opts: {
+        status?: string;
+        overdue?: boolean;
+        dueToday?: boolean;
+        dueThisWeek?: boolean;
+        includeDeleted?: boolean;
+        page: string;
+        pageSize: string;
+      }) => {
+        const filters = {
+          ...(opts.status ? { status: parseTodoStatus(opts.status) } : {}),
+          ...(opts.overdue === true ? { overdue: true } : {}),
+          ...(opts.dueToday === true ? { dueToday: true } : {}),
+          ...(opts.dueThisWeek === true ? { dueThisWeek: true } : {}),
+          ...(opts.includeDeleted === true ? { includeDeleted: true } : {}),
+        };
+        const result = TodoService.list(db, filters, {
+          page: parseId(opts.page, 'page'),
+          pageSize: parseId(opts.pageSize, 'pageSize'),
+        });
+        console.log(`Todos (page ${result.page}/${result.totalPages}, total: ${result.total}):`);
+        for (const t of result.data) {
+          console.log(`  #${t.id} [${t.status}] ${t.title ?? t.raw_input}`);
+        }
+      },
+    );
 
   todo
     .command('show <id>')
@@ -95,4 +115,20 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
         console.log(`Enriched todo #${t.id}: ${t.title}`);
       },
     );
+
+  todo
+    .command('delete <id>')
+    .description('Soft-delete a todo')
+    .action((id: string) => {
+      TodoService.softDeleteEntity(db, parseId(id, 'todo'));
+      console.log(`Todo #${id} soft-deleted`);
+    });
+
+  todo
+    .command('restore <id>')
+    .description('Restore a soft-deleted todo')
+    .action((id: string) => {
+      TodoService.restoreEntity(db, parseId(id, 'todo'));
+      console.log(`Todo #${id} restored`);
+    });
 }

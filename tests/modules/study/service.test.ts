@@ -3,10 +3,11 @@ import type { DrizzleDatabase } from '../../../src/core/drizzle.ts';
 import { createTestDb } from '../../helpers/db.ts';
 import { studyMigrations } from '../../../src/modules/study/schema.ts';
 import { goalsMigrations as goalMigrations } from '../../../src/modules/goals/schema.ts';
-import * as StudyService from '../../../src/modules/study/service.ts';
+import { StudyService } from '../../../src/modules/study/service.ts';
 import { NotFoundError, InvalidTransitionError } from '../../../src/core/errors.ts';
 import { StudyStatus, EnrichmentStatus } from '../../../src/core/types.ts';
 import { insertStudyTopic, insertGoal } from '../../helpers/fixtures.ts';
+import { parseJsonStringArray } from '../../helpers/tool-result.ts';
 
 describe('StudyService', () => {
   let db: DrizzleDatabase;
@@ -168,7 +169,7 @@ describe('StudyService', () => {
     it('adds a note to a study topic', () => {
       const id = insertStudyTopic(db, { raw_input: 'Test topic' });
       const topic = StudyService.addNote(db, id, 'First note');
-      const notes: string[] = JSON.parse(topic.notes) as string[];
+      const notes = parseJsonStringArray(topic.notes);
       expect(notes).toEqual(['First note']);
     });
 
@@ -176,7 +177,7 @@ describe('StudyService', () => {
       const id = insertStudyTopic(db, { raw_input: 'Test topic' });
       StudyService.addNote(db, id, 'First note');
       const topic = StudyService.addNote(db, id, 'Second note');
-      const notes: string[] = JSON.parse(topic.notes) as string[];
+      const notes = parseJsonStringArray(topic.notes);
       expect(notes).toEqual(['First note', 'Second note']);
     });
 
@@ -189,7 +190,7 @@ describe('StudyService', () => {
     it('adds a resource to a study topic', () => {
       const id = insertStudyTopic(db, { raw_input: 'Test topic' });
       const topic = StudyService.addResource(db, id, 'https://example.com');
-      const resources: string[] = JSON.parse(topic.resources) as string[];
+      const resources = parseJsonStringArray(topic.resources);
       expect(resources).toEqual(['https://example.com']);
     });
 
@@ -197,7 +198,7 @@ describe('StudyService', () => {
       const id = insertStudyTopic(db, { raw_input: 'Test topic' });
       StudyService.addResource(db, id, 'https://example.com');
       const topic = StudyService.addResource(db, id, 'https://docs.example.com');
-      const resources: string[] = JSON.parse(topic.resources) as string[];
+      const resources = parseJsonStringArray(topic.resources);
       expect(resources).toEqual(['https://example.com', 'https://docs.example.com']);
     });
 
@@ -262,6 +263,37 @@ describe('StudyService', () => {
 
     it('throws NotFoundError for missing study topic', () => {
       expect(() => StudyService.enrich(db, 999, { title: 'Nope' })).toThrow(NotFoundError);
+    });
+  });
+
+  describe('soft-delete', () => {
+    it('excludes soft-deleted study topics from list by default', () => {
+      insertStudyTopic(db, { raw_input: 'Active topic' });
+      const id2 = insertStudyTopic(db, { raw_input: 'Deleted topic' });
+      StudyService.softDeleteEntity(db, id2);
+
+      const result = StudyService.list(db);
+      expect(result.total).toBe(1);
+      expect(result.data).toHaveLength(1);
+    });
+
+    it('includes soft-deleted study topics when includeDeleted is true', () => {
+      insertStudyTopic(db, { raw_input: 'Active topic' });
+      const id2 = insertStudyTopic(db, { raw_input: 'Deleted topic' });
+      StudyService.softDeleteEntity(db, id2);
+
+      const result = StudyService.list(db, { includeDeleted: true });
+      expect(result.total).toBe(2);
+      expect(result.data).toHaveLength(2);
+    });
+
+    it('soft-delete and restore round-trip', () => {
+      const id = insertStudyTopic(db, { raw_input: 'Round-trip topic' });
+      StudyService.softDeleteEntity(db, id);
+      expect(StudyService.list(db).total).toBe(0);
+
+      StudyService.restoreEntity(db, id);
+      expect(StudyService.list(db).total).toBe(1);
     });
   });
 });

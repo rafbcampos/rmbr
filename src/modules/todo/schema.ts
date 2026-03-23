@@ -26,4 +26,10 @@ export const todoMigrations: readonly Migration[] = [
     up: 'CREATE INDEX idx_todos_status ON todos(status)',
     down: 'DROP INDEX IF EXISTS idx_todos_status',
   },
+  {
+    version: 102,
+    description: 'Add deleted_at column to todos',
+    up: 'ALTER TABLE todos ADD COLUMN deleted_at TEXT DEFAULT NULL',
+    down: 'SELECT 1 -- SQLite does not support DROP COLUMN easily',
+  },
 ];

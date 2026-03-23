@@ -24,4 +24,10 @@ export const kudosMigrations: readonly Migration[] = [
     up: 'CREATE INDEX idx_kudos_direction ON kudos(direction)',
     down: 'DROP INDEX IF EXISTS idx_kudos_direction',
   },
+  {
+    version: 202,
+    description: 'Add deleted_at column to kudos',
+    up: 'ALTER TABLE kudos ADD COLUMN deleted_at TEXT DEFAULT NULL',
+    down: 'SELECT 1 -- SQLite does not support DROP COLUMN easily',
+  },
 ];

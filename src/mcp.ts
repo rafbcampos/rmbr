@@ -6,12 +6,6 @@ import { runMigrations } from './core/migrator.ts';
 import { createAppRegistry } from './registry.ts';
 import type { ToolArgs } from './core/module-contract.ts';
 
-function isToolArgs(value: Record<string, unknown>): value is ToolArgs {
-  return Object.values(value).every(
-    v => v === null || typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean',
-  );
-}
-
 export async function runMcp(): Promise<void> {
   const config = loadConfig();
   const { raw, drizzle: db } = openDrizzleDatabase(config.dbPath);
@@ -32,16 +26,31 @@ export async function runMcp(): Promise<void> {
         inputSchema: tool.schema,
         ...(tool.annotations ? { annotations: tool.annotations } : {}),
       },
-      async (rawArgs: Record<string, unknown>) => {
-        if (!isToolArgs(rawArgs)) {
+      async rawArgs => {
+        const validated: ToolArgs = {};
+        let valid = true;
+        for (const [key, val] of Object.entries(rawArgs)) {
+          if (
+            val === null ||
+            typeof val === 'string' ||
+            typeof val === 'number' ||
+            typeof val === 'boolean'
+          ) {
+            validated[key] = val;
+          } else {
+            valid = false;
+            break;
+          }
+        }
+        if (!valid) {
           return {
-            content: [{ type: 'text' as const, text: 'Invalid tool arguments' }],
+            content: [{ type: 'text', text: 'Invalid tool arguments' }],
             isError: true,
           };
         }
-        const result = await tool.handler(db, rawArgs);
+        const result = await tool.handler(db, validated);
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result) }],
+          content: [{ type: 'text', text: JSON.stringify(result) }],
         };
       },
     );

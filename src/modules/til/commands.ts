@@ -20,9 +20,13 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
     .command('list')
     .description('List TIL entries')
     .option('--domain <domain>', 'Filter by domain')
+    .option('--include-deleted', 'Include soft-deleted TIL entries')
     .option('--page <page>', 'Page number', '1')
-    .action((opts: { domain?: string; page?: string }) => {
-      const filters: TilFilters = opts.domain !== undefined ? { domain: opts.domain } : {};
+    .action((opts: { domain?: string; includeDeleted?: boolean; page?: string }) => {
+      const filters: TilFilters = {
+        ...(opts.domain !== undefined ? { domain: opts.domain } : {}),
+        ...(opts.includeDeleted === true ? { includeDeleted: true } : {}),
+      };
       const page = parseId(opts.page ?? '1', 'page');
       const result = TilService.list(db, filters, { page, pageSize: 20 });
       console.log(JSON.stringify(result, null, 2));
@@ -81,4 +85,22 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
         console.log(JSON.stringify(result, null, 2));
       },
     );
+
+  til
+    .command('delete')
+    .description('Soft-delete a TIL entry')
+    .argument('<id>', 'TIL ID')
+    .action((id: string) => {
+      TilService.softDeleteEntity(db, parseId(id, 'til'));
+      console.log(`TIL #${id} soft-deleted`);
+    });
+
+  til
+    .command('restore')
+    .description('Restore a soft-deleted TIL entry')
+    .argument('<id>', 'TIL ID')
+    .action((id: string) => {
+      TilService.restoreEntity(db, parseId(id, 'til'));
+      console.log(`TIL #${id} restored`);
+    });
 }

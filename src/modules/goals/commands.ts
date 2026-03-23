@@ -1,7 +1,7 @@
 import type { Command } from 'commander';
 import type { DrizzleDatabase } from '../../core/drizzle.ts';
 import { GoalStatus } from '../../core/types.ts';
-import * as GoalService from './service.ts';
+import { GoalService } from './service.ts';
 import { isGoalStatus, isQuarter } from './types.ts';
 import { parseId } from '../../shared/validation.ts';
 
@@ -23,6 +23,7 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
     .option('-s, --status <status>', 'Filter by status')
     .option('-q, --quarter <quarter>', 'Filter by quarter (Q1-Q4)')
     .option('-y, --year <year>', 'Filter by year')
+    .option('--include-deleted', 'Include soft-deleted goals')
     .option('-p, --page <page>', 'Page number', '1')
     .option('--page-size <size>', 'Page size', '20')
     .action(
@@ -30,13 +31,15 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
         status?: string;
         quarter?: string;
         year?: string;
+        includeDeleted?: boolean;
         page: string;
         pageSize: string;
       }) => {
-        const filters: GoalService.GoalFilters = {
+        const filters = {
           status: opts.status && isGoalStatus(opts.status) ? opts.status : undefined,
           quarter: opts.quarter && isQuarter(opts.quarter) ? opts.quarter : undefined,
           year: opts.year ? parseId(opts.year, 'year') : undefined,
+          includeDeleted: opts.includeDeleted === true ? true : undefined,
         };
         const result = GoalService.list(db, filters, {
           page: parseId(opts.page, 'page'),
@@ -134,5 +137,32 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
       }
       const data = GoalService.getQuarterlyReviewData(db, opts.quarter, parseId(opts.year, 'year'));
       console.log(JSON.stringify(data, null, 2));
+    });
+
+  goal
+    .command('delete')
+    .description('Soft-delete a goal')
+    .argument('<id>', 'Goal ID')
+    .action((id: string) => {
+      GoalService.softDeleteEntity(db, parseId(id, 'goal'));
+      console.log(`Goal #${id} soft-deleted`);
+    });
+
+  goal
+    .command('restore')
+    .description('Restore a soft-deleted goal')
+    .argument('<id>', 'Goal ID')
+    .action((id: string) => {
+      GoalService.restoreEntity(db, parseId(id, 'goal'));
+      console.log(`Goal #${id} restored`);
+    });
+
+  goal
+    .command('related')
+    .description('Show all entities related to a goal')
+    .argument('<id>', 'Goal ID')
+    .action((id: string) => {
+      const related = GoalService.getRelatedEntities(db, parseId(id, 'goal'));
+      console.log(JSON.stringify(related, null, 2));
     });
 }

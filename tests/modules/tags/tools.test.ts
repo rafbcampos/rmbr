@@ -7,7 +7,8 @@ import { todoMigrations } from '../../../src/modules/todo/schema.ts';
 import { goalsMigrations } from '../../../src/modules/goals/schema.ts';
 import { tagsTools } from '../../../src/modules/tags/tools.ts';
 import { EntityType } from '../../../src/modules/tags/types.ts';
-import type { McpToolDefinition, ToolResult } from '../../../src/core/module-contract.ts';
+import type { McpToolDefinition } from '../../../src/core/module-contract.ts';
+import { getDataArray } from '../../helpers/tool-result.ts';
 
 function findTool(name: string): McpToolDefinition {
   const tool = tagsTools.find(t => t.name === name);
@@ -67,7 +68,7 @@ describe('tags tools', () => {
       });
 
       const tags = await listTool.handler(db, {});
-      const tagData = tags.data as ToolResult[];
+      const tagData = getDataArray(tags);
       expect(tagData).toHaveLength(1);
       expect(tagData[0]?.name).toBe('new-tag');
     });
@@ -162,7 +163,7 @@ describe('tags tools', () => {
       });
 
       const result = await tool.handler(db, {});
-      const data = result.data as ToolResult[];
+      const data = getDataArray(result);
       expect(data).toHaveLength(2);
       const names = data.map(t => t.name);
       expect(names).toContain('urgent');
@@ -212,7 +213,7 @@ describe('tags tools', () => {
         tag: 'q1',
         entity_type: EntityType.Todo,
       });
-      const data = result.data as ToolResult[];
+      const data = getDataArray(result);
       expect(data).toHaveLength(1);
       expect(data[0]?.entity_type).toBe(EntityType.Todo);
     });
@@ -249,7 +250,7 @@ describe('tags tools', () => {
         entity_type: EntityType.Todo,
         entity_id: todoId,
       });
-      const data = result.data as ToolResult[];
+      const data = getDataArray(result);
       expect(data).toHaveLength(3);
       const names = data.map(t => t.name);
       expect(names).toContain('urgent');
@@ -288,7 +289,7 @@ describe('tags tools', () => {
         entity_type: EntityType.Todo,
         entity_id: todoId,
       });
-      const data = result.data as ToolResult[];
+      const data = getDataArray(result);
       expect(data).toHaveLength(1);
       expect(data[0]?.name).toBe('shared');
     });

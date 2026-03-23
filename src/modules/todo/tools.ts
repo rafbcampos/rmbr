@@ -1,25 +1,17 @@
 import { z } from 'zod';
 import type { McpToolDefinition, ToolArgs, ToolResult } from '../../core/module-contract.ts';
 import { ENRICHMENT_PROMPTS } from '../../core/prompts.ts';
-import * as TodoService from './service.ts';
-import type { Todo } from './types.ts';
+import { getString, getNumber, extractFields, extractPagination } from '../../shared/tool-args.ts';
+import { entityToToolResult, paginatedToToolResult } from '../../shared/tool-result.ts';
+import { TodoService } from './service.ts';
 import { parseTodoStatus } from './types.ts';
-import { getString, getNumber } from '../../shared/tool-args.ts';
 
-function todoToToolResult(todo: Todo): ToolResult {
-  return {
-    id: todo.id,
-    raw_input: todo.raw_input,
-    title: todo.title,
-    status: todo.status,
-    priority: todo.priority,
-    due_date: todo.due_date,
-    goal_id: todo.goal_id,
-    enrichment_status: todo.enrichment_status,
-    created_at: todo.created_at,
-    updated_at: todo.updated_at,
-  };
-}
+const TODO_ENRICH_SPECS = [
+  { name: 'title', type: 'string' as const },
+  { name: 'priority', type: 'string' as const },
+  { name: 'due_date', type: 'string' as const },
+  { name: 'goal_id', type: 'number' as const },
+];
 
 export const todoTools: readonly McpToolDefinition[] = [
   {
@@ -34,21 +26,12 @@ export const todoTools: readonly McpToolDefinition[] = [
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
       const todo = TodoService.create(db, getString(args, 'raw_input'));
-      const hasEnrichment =
-        typeof args.title === 'string' ||
-        typeof args.priority === 'string' ||
-        typeof args.due_date === 'string' ||
-        typeof args.goal_id === 'number';
+      const { hasEnrichment, fields } = extractFields(args, TODO_ENRICH_SPECS);
       if (hasEnrichment) {
-        const enriched = TodoService.enrich(db, todo.id, {
-          title: typeof args.title === 'string' ? args.title : undefined,
-          priority: typeof args.priority === 'string' ? args.priority : undefined,
-          due_date: typeof args.due_date === 'string' ? args.due_date : undefined,
-          goal_id: typeof args.goal_id === 'number' ? args.goal_id : undefined,
-        });
-        return todoToToolResult(enriched);
+        const enriched = TodoService.enrich(db, todo.id, fields);
+        return entityToToolResult(enriched);
       }
-      return todoToToolResult(todo);
+      return entityToToolResult(todo);
     },
   },
   {
@@ -56,30 +39,23 @@ export const todoTools: readonly McpToolDefinition[] = [
     description: 'List todos with optional status filter',
     schema: {
       status: z.string().optional(),
+      overdue: z.boolean().optional().describe('Filter overdue todos'),
+      due_today: z.boolean().optional().describe('Filter todos due today'),
+      due_this_week: z.boolean().optional().describe('Filter todos due this week'),
+      include_deleted: z.boolean().optional().describe('Include soft-deleted todos'),
       page: z.number().optional(),
       page_size: z.number().optional(),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
       const statusVal = args.status;
-      const filters =
-        typeof statusVal === 'string' ? { status: parseTodoStatus(statusVal) } : undefined;
-      const pageVal = args.page;
-      const pageSizeVal = args.page_size;
-      const pagination =
-        typeof pageVal === 'number' || typeof pageSizeVal === 'number'
-          ? {
-              page: typeof pageVal === 'number' ? pageVal : 1,
-              pageSize: typeof pageSizeVal === 'number' ? pageSizeVal : 20,
-            }
-          : undefined;
-      const result = TodoService.list(db, filters, pagination);
-      return {
-        total: result.total,
-        page: result.page,
-        pageSize: result.pageSize,
-        totalPages: result.totalPages,
-        data: result.data.map(todoToToolResult),
+      const filters = {
+        ...(typeof statusVal === 'string' ? { status: parseTodoStatus(statusVal) } : {}),
+        ...(args.overdue === true ? { overdue: true } : {}),
+        ...(args.due_today === true ? { dueToday: true } : {}),
+        ...(args.due_this_week === true ? { dueThisWeek: true } : {}),
+        ...(args.include_deleted === true ? { includeDeleted: true } : {}),
       };
+      return paginatedToToolResult(TodoService.list(db, filters, extractPagination(args)));
     },
   },
   {
@@ -89,8 +65,7 @@ export const todoTools: readonly McpToolDefinition[] = [
       id: z.number(),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
-      const todo = TodoService.getById(db, getNumber(args, 'id'));
-      return todoToToolResult(todo);
+      return entityToToolResult(TodoService.getById(db, getNumber(args, 'id')));
     },
   },
   {
@@ -106,7 +81,7 @@ export const todoTools: readonly McpToolDefinition[] = [
         getNumber(args, 'id'),
         parseTodoStatus(getString(args, 'status')),
       );
-      return todoToToolResult(todo);
+      return entityToToolResult(todo);
     },
   },
   {
@@ -120,14 +95,33 @@ export const todoTools: readonly McpToolDefinition[] = [
       goal_id: z.number().optional(),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
-      const fields: TodoService.EnrichFields = {
-        title: typeof args.title === 'string' ? args.title : undefined,
-        priority: typeof args.priority === 'string' ? args.priority : undefined,
-        due_date: typeof args.due_date === 'string' ? args.due_date : undefined,
-        goal_id: typeof args.goal_id === 'number' ? args.goal_id : undefined,
-      };
-      const todo = TodoService.enrich(db, getNumber(args, 'id'), fields);
-      return todoToToolResult(todo);
+      const { fields } = extractFields(args, TODO_ENRICH_SPECS);
+      return entityToToolResult(TodoService.enrich(db, getNumber(args, 'id'), fields));
+    },
+  },
+  {
+    name: 'rmbr_todo_delete',
+    description: 'Soft-delete a todo',
+    schema: {
+      id: z.number().describe('The todo ID'),
+    },
+    annotations: { destructiveHint: true },
+    handler: async (db, args: ToolArgs): Promise<ToolResult> => {
+      const id = getNumber(args, 'id');
+      TodoService.softDeleteEntity(db, id);
+      return { id, deleted: true };
+    },
+  },
+  {
+    name: 'rmbr_todo_restore',
+    description: 'Restore a soft-deleted todo',
+    schema: {
+      id: z.number().describe('The todo ID'),
+    },
+    handler: async (db, args: ToolArgs): Promise<ToolResult> => {
+      const id = getNumber(args, 'id');
+      TodoService.restoreEntity(db, id);
+      return entityToToolResult(TodoService.getById(db, id));
     },
   },
 ];

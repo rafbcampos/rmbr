@@ -6,6 +6,7 @@ import { tilModule } from './modules/til/index.ts';
 import { studyModule } from './modules/study/index.ts';
 import { slackModule } from './modules/slack/index.ts';
 import { tagsModule } from './modules/tags/index.ts';
+import { searchModule } from './modules/search/index.ts';
 
 export function createAppRegistry(): ModuleRegistry {
   const registry = createRegistry();
@@ -17,6 +18,7 @@ export function createAppRegistry(): ModuleRegistry {
   registry.register(studyModule);
   registry.register(slackModule);
   registry.register(tagsModule);
+  registry.register(searchModule);
 
   return registry;
 }

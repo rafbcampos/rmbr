@@ -16,6 +16,7 @@ export const goals = sqliteTable('goals', {
   updated_at: text('updated_at')
     .notNull()
     .default(sql`(datetime('now'))`),
+  deleted_at: text('deleted_at'),
 });
 
 export const goalStarNarratives = sqliteTable('goal_star_narratives', {

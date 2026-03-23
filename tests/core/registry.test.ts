@@ -58,4 +58,37 @@ describe('registry', () => {
     registry.register(createMockModule('b'));
     expect(registry.getAllTools()).toHaveLength(2);
   });
+
+  it('should throw on duplicate tool names across modules', () => {
+    const registry = createRegistry();
+    const mod1: RmbrModule = {
+      name: 'mod1',
+      migrations: [],
+      tools: [
+        {
+          name: 'rmbr_shared_tool',
+          description: 'Tool 1',
+          schema: {},
+          handler: async () => ({}),
+        },
+      ],
+      registerCommands: () => {},
+    };
+    const mod2: RmbrModule = {
+      name: 'mod2',
+      migrations: [],
+      tools: [
+        {
+          name: 'rmbr_shared_tool',
+          description: 'Tool 2',
+          schema: {},
+          handler: async () => ({}),
+        },
+      ],
+      registerCommands: () => {},
+    };
+    registry.register(mod1);
+    registry.register(mod2);
+    expect(() => registry.getAllTools()).toThrow("Duplicate tool name: 'rmbr_shared_tool'");
+  });
 });

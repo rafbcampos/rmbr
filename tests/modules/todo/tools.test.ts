@@ -6,6 +6,7 @@ import { goalsMigrations as goalMigrations } from '../../../src/modules/goals/sc
 import { todoTools } from '../../../src/modules/todo/tools.ts';
 import { TodoStatus, EnrichmentStatus } from '../../../src/core/types.ts';
 import { insertTodo, insertGoal } from '../../helpers/fixtures.ts';
+import { getDataArray } from '../../helpers/tool-result.ts';
 
 const findTool = (name: string) => {
   const tool = todoTools.find(t => t.name === name);
@@ -78,7 +79,7 @@ describe('todo tools', () => {
 
       expect(result.total).toBe(3);
       expect(result.page).toBe(1);
-      expect((result.data as unknown[]).length).toBe(3);
+      expect(getDataArray(result).length).toBe(3);
     });
 
     it('filters by status', async () => {
@@ -90,7 +91,7 @@ describe('todo tools', () => {
       const result = await tool.handler(db, { status: TodoStatus.Ready });
 
       expect(result.total).toBe(1);
-      const data = result.data as Array<Record<string, unknown>>;
+      const data = getDataArray(result);
       expect(data[0]?.raw_input).toBe('Ready one');
     });
 
@@ -103,11 +104,11 @@ describe('todo tools', () => {
       const page1 = await tool.handler(db, { page: 1, page_size: 2 });
 
       expect(page1.total).toBe(5);
-      expect((page1.data as unknown[]).length).toBe(2);
+      expect(getDataArray(page1).length).toBe(2);
       expect(page1.totalPages).toBe(3);
 
       const page3 = await tool.handler(db, { page: 3, page_size: 2 });
-      expect((page3.data as unknown[]).length).toBe(1);
+      expect(getDataArray(page3).length).toBe(1);
     });
 
     it('returns empty result when no todos exist', async () => {
@@ -115,7 +116,7 @@ describe('todo tools', () => {
       const result = await tool.handler(db, {});
 
       expect(result.total).toBe(0);
-      expect((result.data as unknown[]).length).toBe(0);
+      expect(getDataArray(result).length).toBe(0);
     });
   });
 

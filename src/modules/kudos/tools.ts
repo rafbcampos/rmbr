@@ -1,24 +1,19 @@
 import { z } from 'zod';
 import type { McpToolDefinition, ToolArgs, ToolResult } from '../../core/module-contract.ts';
 import { ENRICHMENT_PROMPTS } from '../../core/prompts.ts';
+import { getString, getNumber, extractFields } from '../../shared/tool-args.ts';
+import { entityToToolResult, paginatedToToolResult } from '../../shared/tool-result.ts';
 import type { KudosFilters } from './service.ts';
 import { KudosService } from './service.ts';
 import { isKudosDirection } from './types.ts';
 
-function kudosToToolResult(kudos: ReturnType<typeof KudosService.getById>): ToolResult {
-  return {
-    id: kudos.id,
-    raw_input: kudos.raw_input,
-    direction: kudos.direction,
-    person: kudos.person,
-    summary: kudos.summary,
-    context: kudos.context,
-    goal_id: kudos.goal_id,
-    enrichment_status: kudos.enrichment_status,
-    created_at: kudos.created_at,
-    updated_at: kudos.updated_at,
-  };
-}
+const KUDOS_ENRICH_SPECS = [
+  { name: 'direction', type: 'string' as const },
+  { name: 'person', type: 'string' as const },
+  { name: 'summary', type: 'string' as const },
+  { name: 'context', type: 'string' as const },
+  { name: 'goal_id', type: 'number' as const },
+];
 
 export const kudosTools: readonly McpToolDefinition[] = [
   {
@@ -33,28 +28,16 @@ export const kudosTools: readonly McpToolDefinition[] = [
       goal_id: z.number().optional().describe('Associated goal ID'),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
-      const rawInput = args.raw_input;
-      if (typeof rawInput !== 'string') {
-        throw new Error('raw_input must be a string');
+      const kudos = KudosService.create(db, getString(args, 'raw_input'));
+      const { hasEnrichment, fields } = extractFields(args, KUDOS_ENRICH_SPECS);
+      if (fields['direction'] !== undefined && !isKudosDirection(String(fields['direction']))) {
+        delete fields['direction'];
       }
-      const kudos = KudosService.create(db, rawInput);
-      const hasEnrichment =
-        typeof args.direction === 'string' ||
-        typeof args.person === 'string' ||
-        typeof args.summary === 'string' ||
-        typeof args.context === 'string' ||
-        typeof args.goal_id === 'number';
       if (hasEnrichment) {
-        const fields: Record<string, string | number> = {};
-        if (typeof args.direction === 'string') fields['direction'] = args.direction;
-        if (typeof args.person === 'string') fields['person'] = args.person;
-        if (typeof args.summary === 'string') fields['summary'] = args.summary;
-        if (typeof args.context === 'string') fields['context'] = args.context;
-        if (typeof args.goal_id === 'number') fields['goal_id'] = args.goal_id;
         const enriched = KudosService.enrich(db, kudos.id, fields);
-        return kudosToToolResult(enriched);
+        return entityToToolResult(enriched);
       }
-      return kudosToToolResult(kudos);
+      return entityToToolResult(kudos);
     },
   },
   {
@@ -63,6 +46,7 @@ export const kudosTools: readonly McpToolDefinition[] = [
     schema: {
       direction: z.enum(['given', 'received']).optional().describe('Filter by direction'),
       person: z.string().optional().describe('Filter by person'),
+      include_deleted: z.boolean().optional().describe('Include soft-deleted kudos'),
       page: z.number().optional().describe('Page number'),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
@@ -71,16 +55,10 @@ export const kudosTools: readonly McpToolDefinition[] = [
           ? { direction: args.direction }
           : {}),
         ...(typeof args.person === 'string' ? { person: args.person } : {}),
+        ...(args.include_deleted === true ? { includeDeleted: true } : {}),
       };
       const page = typeof args.page === 'number' ? args.page : 1;
-      const result = KudosService.list(db, filters, { page, pageSize: 20 });
-      return {
-        total: result.total,
-        page: result.page,
-        pageSize: result.pageSize,
-        totalPages: result.totalPages,
-        data: result.data.map(kudosToToolResult),
-      };
+      return paginatedToToolResult(KudosService.list(db, filters, { page, pageSize: 20 }));
     },
   },
   {
@@ -90,12 +68,7 @@ export const kudosTools: readonly McpToolDefinition[] = [
       id: z.number().describe('The kudos ID'),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
-      const id = args.id;
-      if (typeof id !== 'number') {
-        throw new Error('id must be a number');
-      }
-      const kudos = KudosService.getById(db, id);
-      return kudosToToolResult(kudos);
+      return entityToToolResult(KudosService.getById(db, getNumber(args, 'id')));
     },
   },
   {
@@ -110,28 +83,36 @@ export const kudosTools: readonly McpToolDefinition[] = [
       goal_id: z.number().optional().describe('Associated goal ID'),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
-      const id = args.id;
-      if (typeof id !== 'number') {
-        throw new Error('id must be a number');
+      const { fields } = extractFields(args, KUDOS_ENRICH_SPECS);
+      if (fields['direction'] !== undefined && !isKudosDirection(String(fields['direction']))) {
+        delete fields['direction'];
       }
-      const fields: Record<string, string | number> = {};
-      if (typeof args.direction === 'string') {
-        fields['direction'] = args.direction;
-      }
-      if (typeof args.person === 'string') {
-        fields['person'] = args.person;
-      }
-      if (typeof args.summary === 'string') {
-        fields['summary'] = args.summary;
-      }
-      if (typeof args.context === 'string') {
-        fields['context'] = args.context;
-      }
-      if (typeof args.goal_id === 'number') {
-        fields['goal_id'] = args.goal_id;
-      }
-      const kudos = KudosService.enrich(db, id, fields);
-      return kudosToToolResult(kudos);
+      return entityToToolResult(KudosService.enrich(db, getNumber(args, 'id'), fields));
+    },
+  },
+  {
+    name: 'rmbr_kudos_delete',
+    description: 'Soft-delete a kudos entry',
+    schema: {
+      id: z.number().describe('The kudos ID'),
+    },
+    annotations: { destructiveHint: true },
+    handler: async (db, args: ToolArgs): Promise<ToolResult> => {
+      const id = getNumber(args, 'id');
+      KudosService.softDeleteEntity(db, id);
+      return { id, deleted: true };
+    },
+  },
+  {
+    name: 'rmbr_kudos_restore',
+    description: 'Restore a soft-deleted kudos entry',
+    schema: {
+      id: z.number().describe('The kudos ID'),
+    },
+    handler: async (db, args: ToolArgs): Promise<ToolResult> => {
+      const id = getNumber(args, 'id');
+      KudosService.restoreEntity(db, id);
+      return entityToToolResult(KudosService.getById(db, id));
     },
   },
 ];

@@ -7,6 +7,7 @@ import { goalsMigrations } from '../../../src/modules/goals/schema.ts';
 import { studyTools } from '../../../src/modules/study/tools.ts';
 import { StudyStatus, EnrichmentStatus } from '../../../src/core/types.ts';
 import type { McpToolDefinition } from '../../../src/core/module-contract.ts';
+import { getStringField, parseJsonStringArray } from '../../helpers/tool-result.ts';
 
 function findTool(name: string): McpToolDefinition {
   const tool = studyTools.find(t => t.name === name);
@@ -175,7 +176,7 @@ describe('Study tools', () => {
     it('adds a note to a study topic', async () => {
       const id = insertStudyTopic(db, { raw_input: 'Test topic' });
       const result = await tool.handler(db, { id, note: 'First note' });
-      const notes: string[] = JSON.parse(result.notes as string) as string[];
+      const notes = parseJsonStringArray(getStringField(result, 'notes'));
       expect(notes).toEqual(['First note']);
     });
 
@@ -183,7 +184,7 @@ describe('Study tools', () => {
       const id = insertStudyTopic(db, { raw_input: 'Test topic' });
       await tool.handler(db, { id, note: 'First note' });
       const result = await tool.handler(db, { id, note: 'Second note' });
-      const notes: string[] = JSON.parse(result.notes as string) as string[];
+      const notes = parseJsonStringArray(getStringField(result, 'notes'));
       expect(notes).toEqual(['First note', 'Second note']);
     });
 
@@ -198,7 +199,7 @@ describe('Study tools', () => {
     it('adds a resource to a study topic', async () => {
       const id = insertStudyTopic(db, { raw_input: 'Test topic' });
       const result = await tool.handler(db, { id, resource: 'https://example.com' });
-      const resources: string[] = JSON.parse(result.resources as string) as string[];
+      const resources = parseJsonStringArray(getStringField(result, 'resources'));
       expect(resources).toEqual(['https://example.com']);
     });
 
@@ -206,7 +207,7 @@ describe('Study tools', () => {
       const id = insertStudyTopic(db, { raw_input: 'Test topic' });
       await tool.handler(db, { id, resource: 'https://example.com' });
       const result = await tool.handler(db, { id, resource: 'https://docs.example.com' });
-      const resources: string[] = JSON.parse(result.resources as string) as string[];
+      const resources = parseJsonStringArray(getStringField(result, 'resources'));
       expect(resources).toEqual(['https://example.com', 'https://docs.example.com']);
     });
 

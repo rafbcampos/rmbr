@@ -1,21 +1,16 @@
 import { z } from 'zod';
 import type { McpToolDefinition, ToolArgs, ToolResult } from '../../core/module-contract.ts';
 import { ENRICHMENT_PROMPTS } from '../../core/prompts.ts';
+import { getString, getNumber, extractFields } from '../../shared/tool-args.ts';
+import { entityToToolResult, paginatedToToolResult } from '../../shared/tool-result.ts';
 import { TilService } from './service.ts';
 
-function tilToToolResult(til: ReturnType<typeof TilService.getById>): ToolResult {
-  return {
-    id: til.id,
-    raw_input: til.raw_input,
-    title: til.title,
-    content: til.content,
-    domain: til.domain,
-    tags: til.tags,
-    enrichment_status: til.enrichment_status,
-    created_at: til.created_at,
-    updated_at: til.updated_at,
-  };
-}
+const TIL_ENRICH_SPECS = [
+  { name: 'title', type: 'string' as const },
+  { name: 'content', type: 'string' as const },
+  { name: 'domain', type: 'string' as const },
+  { name: 'tags', type: 'string' as const },
+];
 
 export const tilTools: readonly McpToolDefinition[] = [
   {
@@ -29,26 +24,13 @@ export const tilTools: readonly McpToolDefinition[] = [
       tags: z.string().optional().describe('JSON array of keyword tags'),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
-      const rawInput = args.raw_input;
-      if (typeof rawInput !== 'string') {
-        throw new Error('raw_input must be a string');
-      }
-      const created = TilService.create(db, rawInput);
-      const hasEnrichment =
-        typeof args.title === 'string' ||
-        typeof args.content === 'string' ||
-        typeof args.domain === 'string' ||
-        typeof args.tags === 'string';
+      const created = TilService.create(db, getString(args, 'raw_input'));
+      const { hasEnrichment, fields } = extractFields(args, TIL_ENRICH_SPECS);
       if (hasEnrichment) {
-        const fields: Record<string, string> = {};
-        if (typeof args.title === 'string') fields['title'] = args.title;
-        if (typeof args.content === 'string') fields['content'] = args.content;
-        if (typeof args.domain === 'string') fields['domain'] = args.domain;
-        if (typeof args.tags === 'string') fields['tags'] = args.tags;
         const enriched = TilService.enrich(db, created.id, fields);
-        return tilToToolResult(enriched);
+        return entityToToolResult(enriched);
       }
-      return tilToToolResult(created);
+      return entityToToolResult(created);
     },
   },
   {
@@ -56,19 +38,16 @@ export const tilTools: readonly McpToolDefinition[] = [
     description: 'List TIL entries with optional filters',
     schema: {
       domain: z.string().optional().describe('Filter by domain'),
+      include_deleted: z.boolean().optional().describe('Include soft-deleted TIL entries'),
       page: z.number().optional().describe('Page number'),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
-      const filters = typeof args.domain === 'string' ? { domain: args.domain } : {};
-      const page = typeof args.page === 'number' ? args.page : 1;
-      const result = TilService.list(db, filters, { page, pageSize: 20 });
-      return {
-        total: result.total,
-        page: result.page,
-        pageSize: result.pageSize,
-        totalPages: result.totalPages,
-        data: result.data.map(tilToToolResult),
+      const filters = {
+        ...(typeof args.domain === 'string' ? { domain: args.domain } : {}),
+        ...(args.include_deleted === true ? { includeDeleted: true } : {}),
       };
+      const page = typeof args.page === 'number' ? args.page : 1;
+      return paginatedToToolResult(TilService.list(db, filters, { page, pageSize: 20 }));
     },
   },
   {
@@ -78,12 +57,7 @@ export const tilTools: readonly McpToolDefinition[] = [
       id: z.number().describe('The TIL ID'),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
-      const id = args.id;
-      if (typeof id !== 'number') {
-        throw new Error('id must be a number');
-      }
-      const til = TilService.getById(db, id);
-      return tilToToolResult(til);
+      return entityToToolResult(TilService.getById(db, getNumber(args, 'id')));
     },
   },
   {
@@ -93,14 +67,8 @@ export const tilTools: readonly McpToolDefinition[] = [
       query: z.string().describe('Search query'),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
-      const query = args.query;
-      if (typeof query !== 'string') {
-        throw new Error('query must be a string');
-      }
-      const results = TilService.search(db, query);
-      return {
-        data: results.map(tilToToolResult),
-      };
+      const results = TilService.search(db, getString(args, 'query'));
+      return { data: results.map(entityToToolResult) };
     },
   },
   {
@@ -109,9 +77,7 @@ export const tilTools: readonly McpToolDefinition[] = [
     schema: {},
     handler: async (db): Promise<ToolResult> => {
       const domains = TilService.getDomains(db);
-      return {
-        data: domains.join(','),
-      };
+      return { data: domains.join(',') };
     },
   },
   {
@@ -125,25 +91,33 @@ export const tilTools: readonly McpToolDefinition[] = [
       tags: z.string().optional().describe('Tags (JSON array)'),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
-      const id = args.id;
-      if (typeof id !== 'number') {
-        throw new Error('id must be a number');
-      }
-      const fields: Record<string, string> = {};
-      if (typeof args.title === 'string') {
-        fields['title'] = args.title;
-      }
-      if (typeof args.content === 'string') {
-        fields['content'] = args.content;
-      }
-      if (typeof args.domain === 'string') {
-        fields['domain'] = args.domain;
-      }
-      if (typeof args.tags === 'string') {
-        fields['tags'] = args.tags;
-      }
-      const til = TilService.enrich(db, id, fields);
-      return tilToToolResult(til);
+      const { fields } = extractFields(args, TIL_ENRICH_SPECS);
+      return entityToToolResult(TilService.enrich(db, getNumber(args, 'id'), fields));
+    },
+  },
+  {
+    name: 'rmbr_til_delete',
+    description: 'Soft-delete a TIL entry',
+    schema: {
+      id: z.number().describe('The TIL ID'),
+    },
+    annotations: { destructiveHint: true },
+    handler: async (db, args: ToolArgs): Promise<ToolResult> => {
+      const id = getNumber(args, 'id');
+      TilService.softDeleteEntity(db, id);
+      return { id, deleted: true };
+    },
+  },
+  {
+    name: 'rmbr_til_restore',
+    description: 'Restore a soft-deleted TIL entry',
+    schema: {
+      id: z.number().describe('The TIL ID'),
+    },
+    handler: async (db, args: ToolArgs): Promise<ToolResult> => {
+      const id = getNumber(args, 'id');
+      TilService.restoreEntity(db, id);
+      return entityToToolResult(TilService.getById(db, id));
     },
   },
 ];

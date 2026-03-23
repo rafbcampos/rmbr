@@ -33,7 +33,15 @@ export function createRegistry(): ModuleRegistry {
     },
 
     getAllTools(): readonly McpToolDefinition[] {
-      return [...modules.values()].flatMap(m => m.tools);
+      const allTools = [...modules.values()].flatMap(m => m.tools);
+      const seen = new Set<string>();
+      for (const tool of allTools) {
+        if (seen.has(tool.name)) {
+          throw new Error(`Duplicate tool name: '${tool.name}'`);
+        }
+        seen.add(tool.name);
+      }
+      return allTools;
     },
   };
 }

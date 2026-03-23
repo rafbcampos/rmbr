@@ -18,6 +18,7 @@ export interface TilRow {
   enrichment_status: string;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
 }
 
 export function toTil(row: TilRow): Til {
@@ -31,5 +32,6 @@ export function toTil(row: TilRow): Til {
     enrichment_status: parseEnrichmentStatus(row.enrichment_status),
     created_at: row.created_at,
     updated_at: row.updated_at,
+    deleted_at: row.deleted_at,
   };
 }

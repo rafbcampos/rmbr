@@ -62,4 +62,10 @@ export const goalsMigrations: readonly Migration[] = [
     up: 'CREATE INDEX idx_goals_quarter_year ON goals(quarter, year)',
     down: 'DROP INDEX IF EXISTS idx_goals_quarter_year',
   },
+  {
+    version: 304,
+    description: 'Add deleted_at column to goals',
+    up: 'ALTER TABLE goals ADD COLUMN deleted_at TEXT DEFAULT NULL',
+    down: 'SELECT 1 -- SQLite does not support DROP COLUMN easily',
+  },
 ];

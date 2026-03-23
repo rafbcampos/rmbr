@@ -1,26 +1,16 @@
 import { z } from 'zod';
 import type { McpToolDefinition, ToolArgs, ToolResult } from '../../core/module-contract.ts';
 import { ENRICHMENT_PROMPTS } from '../../core/prompts.ts';
-import * as StudyService from './service.ts';
-import type { StudyTopic } from './types.ts';
+import { getString, getNumber, extractFields, extractPagination } from '../../shared/tool-args.ts';
+import { entityToToolResult, paginatedToToolResult } from '../../shared/tool-result.ts';
+import { StudyService } from './service.ts';
 import { parseStudyStatus } from './types.ts';
-import { getString, getNumber } from '../../shared/tool-args.ts';
 
-function studyTopicToToolResult(topic: StudyTopic): ToolResult {
-  return {
-    id: topic.id,
-    raw_input: topic.raw_input,
-    title: topic.title,
-    status: topic.status,
-    domain: topic.domain,
-    notes: topic.notes,
-    resources: topic.resources,
-    goal_id: topic.goal_id,
-    enrichment_status: topic.enrichment_status,
-    created_at: topic.created_at,
-    updated_at: topic.updated_at,
-  };
-}
+const STUDY_ENRICH_SPECS = [
+  { name: 'title', type: 'string' as const },
+  { name: 'domain', type: 'string' as const },
+  { name: 'goal_id', type: 'number' as const },
+];
 
 export const studyTools: readonly McpToolDefinition[] = [
   {
@@ -34,19 +24,12 @@ export const studyTools: readonly McpToolDefinition[] = [
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
       const topic = StudyService.create(db, getString(args, 'raw_input'));
-      const hasEnrichment =
-        typeof args.title === 'string' ||
-        typeof args.domain === 'string' ||
-        typeof args.goal_id === 'number';
+      const { hasEnrichment, fields } = extractFields(args, STUDY_ENRICH_SPECS);
       if (hasEnrichment) {
-        const enriched = StudyService.enrich(db, topic.id, {
-          title: typeof args.title === 'string' ? args.title : undefined,
-          domain: typeof args.domain === 'string' ? args.domain : undefined,
-          goal_id: typeof args.goal_id === 'number' ? args.goal_id : undefined,
-        });
-        return studyTopicToToolResult(enriched);
+        const enriched = StudyService.enrich(db, topic.id, fields);
+        return entityToToolResult(enriched);
       }
-      return studyTopicToToolResult(topic);
+      return entityToToolResult(topic);
     },
   },
   {
@@ -56,36 +39,18 @@ export const studyTools: readonly McpToolDefinition[] = [
       status: z.string().optional(),
       domain: z.string().optional(),
       goal_id: z.number().optional(),
+      include_deleted: z.boolean().optional().describe('Include soft-deleted study topics'),
       page: z.number().optional(),
       page_size: z.number().optional(),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
-      const filters: StudyService.StudyFilters = {
+      const filters = {
         ...(typeof args.status === 'string' ? { status: parseStudyStatus(args.status) } : {}),
         ...(typeof args.domain === 'string' ? { domain: args.domain } : {}),
         ...(typeof args.goal_id === 'number' ? { goalId: args.goal_id } : {}),
+        ...(args.include_deleted === true ? { includeDeleted: true } : {}),
       };
-      const hasFilters =
-        filters.status !== undefined ||
-        filters.domain !== undefined ||
-        filters.goalId !== undefined;
-      const pageVal = args.page;
-      const pageSizeVal = args.page_size;
-      const pagination =
-        typeof pageVal === 'number' || typeof pageSizeVal === 'number'
-          ? {
-              page: typeof pageVal === 'number' ? pageVal : 1,
-              pageSize: typeof pageSizeVal === 'number' ? pageSizeVal : 20,
-            }
-          : undefined;
-      const result = StudyService.list(db, hasFilters ? filters : undefined, pagination);
-      return {
-        total: result.total,
-        page: result.page,
-        pageSize: result.pageSize,
-        totalPages: result.totalPages,
-        data: result.data.map(studyTopicToToolResult),
-      };
+      return paginatedToToolResult(StudyService.list(db, filters, extractPagination(args)));
     },
   },
   {
@@ -95,8 +60,7 @@ export const studyTools: readonly McpToolDefinition[] = [
       id: z.number(),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
-      const topic = StudyService.getById(db, getNumber(args, 'id'));
-      return studyTopicToToolResult(topic);
+      return entityToToolResult(StudyService.getById(db, getNumber(args, 'id')));
     },
   },
   {
@@ -112,7 +76,7 @@ export const studyTools: readonly McpToolDefinition[] = [
         getNumber(args, 'id'),
         parseStudyStatus(getString(args, 'status')),
       );
-      return studyTopicToToolResult(topic);
+      return entityToToolResult(topic);
     },
   },
   {
@@ -124,7 +88,7 @@ export const studyTools: readonly McpToolDefinition[] = [
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
       const topic = StudyService.addNote(db, getNumber(args, 'id'), getString(args, 'note'));
-      return studyTopicToToolResult(topic);
+      return entityToToolResult(topic);
     },
   },
   {
@@ -140,7 +104,7 @@ export const studyTools: readonly McpToolDefinition[] = [
         getNumber(args, 'id'),
         getString(args, 'resource'),
       );
-      return studyTopicToToolResult(topic);
+      return entityToToolResult(topic);
     },
   },
   {
@@ -152,7 +116,7 @@ export const studyTools: readonly McpToolDefinition[] = [
       if (!topic) {
         return { found: false };
       }
-      return { found: true, ...studyTopicToToolResult(topic) };
+      return { found: true, ...entityToToolResult(topic) };
     },
   },
   {
@@ -165,13 +129,33 @@ export const studyTools: readonly McpToolDefinition[] = [
       goal_id: z.number().optional(),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
-      const fields: StudyService.EnrichFields = {
-        title: typeof args.title === 'string' ? args.title : undefined,
-        domain: typeof args.domain === 'string' ? args.domain : undefined,
-        goal_id: typeof args.goal_id === 'number' ? args.goal_id : undefined,
-      };
-      const topic = StudyService.enrich(db, getNumber(args, 'id'), fields);
-      return studyTopicToToolResult(topic);
+      const { fields } = extractFields(args, STUDY_ENRICH_SPECS);
+      return entityToToolResult(StudyService.enrich(db, getNumber(args, 'id'), fields));
+    },
+  },
+  {
+    name: 'rmbr_study_delete',
+    description: 'Soft-delete a study topic',
+    schema: {
+      id: z.number().describe('The study topic ID'),
+    },
+    annotations: { destructiveHint: true },
+    handler: async (db, args: ToolArgs): Promise<ToolResult> => {
+      const id = getNumber(args, 'id');
+      StudyService.softDeleteEntity(db, id);
+      return { id, deleted: true };
+    },
+  },
+  {
+    name: 'rmbr_study_restore',
+    description: 'Restore a soft-deleted study topic',
+    schema: {
+      id: z.number().describe('The study topic ID'),
+    },
+    handler: async (db, args: ToolArgs): Promise<ToolResult> => {
+      const id = getNumber(args, 'id');
+      StudyService.restoreEntity(db, id);
+      return entityToToolResult(StudyService.getById(db, id));
     },
   },
 ];

@@ -32,14 +32,16 @@ Slack messages follow a processing workflow rather than a status lifecycle:
 
 For full syntax details, see the [CLI Reference](/guide/cli-usage).
 
-| Command                | Description                                |
-| ---------------------- | ------------------------------------------ |
-| `rmbr slack ingest`    | Ingest a Slack message from raw content    |
-| `rmbr slack list`      | List messages, optionally filter by status |
-| `rmbr slack sentiment` | Set sentiment on a message                 |
-| `rmbr slack link-todo` | Link a message to an existing todo         |
-| `rmbr slack link-goal` | Link a message to an existing goal         |
-| `rmbr slack process`   | Mark a message as processed                |
+| Command                | Description                                                      |
+| ---------------------- | ---------------------------------------------------------------- |
+| `rmbr slack ingest`    | Ingest a Slack message from raw content                          |
+| `rmbr slack list`      | List messages, optionally filter by status (`--include-deleted`) |
+| `rmbr slack sentiment` | Set sentiment on a message                                       |
+| `rmbr slack link-todo` | Link a message to an existing todo                               |
+| `rmbr slack link-goal` | Link a message to an existing goal                               |
+| `rmbr slack process`   | Mark a message as processed                                      |
+| `rmbr slack delete`    | Soft-delete a slack message (hidden from lists by default)       |
+| `rmbr slack restore`   | Restore a soft-deleted slack message                             |
 
 ## MCP Tools
 
@@ -52,3 +54,5 @@ For full syntax details, see the [CLI Reference](/guide/cli-usage).
 | `rmbr_slack_link_todo`      | Link a message to an existing todo                |
 | `rmbr_slack_link_goal`      | Link a message to an existing goal                |
 | `rmbr_slack_mark_processed` | Mark a message as processed                       |
+| `rmbr_slack_delete`         | Soft-delete a slack message                       |
+| `rmbr_slack_restore`        | Restore a soft-deleted slack message              |

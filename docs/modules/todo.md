@@ -42,23 +42,27 @@ sketch --> ready --> in_progress --> done
 
 For full syntax details, see the [CLI Reference](/guide/cli-usage).
 
-| Command            | Description                             |
-| ------------------ | --------------------------------------- |
-| `rmbr todo add`    | Create a new todo from raw input        |
-| `rmbr todo list`   | List todos, optionally filter by status |
-| `rmbr todo show`   | Show a single todo by ID                |
-| `rmbr todo start`  | Transition a todo to `in_progress`      |
-| `rmbr todo pause`  | Pause an in-progress todo               |
-| `rmbr todo done`   | Mark a todo as done                     |
-| `rmbr todo cancel` | Cancel a todo                           |
-| `rmbr todo enrich` | Enrich a todo with structured fields    |
+| Command             | Description                                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `rmbr todo add`     | Create a new todo from raw input                                                                             |
+| `rmbr todo list`    | List todos, optionally filter by status (`--include-deleted`, `--overdue`, `--due-today`, `--due-this-week`) |
+| `rmbr todo show`    | Show a single todo by ID                                                                                     |
+| `rmbr todo start`   | Transition a todo to `in_progress`                                                                           |
+| `rmbr todo pause`   | Pause an in-progress todo                                                                                    |
+| `rmbr todo done`    | Mark a todo as done                                                                                          |
+| `rmbr todo cancel`  | Cancel a todo                                                                                                |
+| `rmbr todo delete`  | Soft-delete a todo (hidden from lists by default)                                                            |
+| `rmbr todo restore` | Restore a soft-deleted todo                                                                                  |
+| `rmbr todo enrich`  | Enrich a todo with structured fields                                                                         |
 
 ## MCP Tools
 
-| Tool                   | Description                                            |
-| ---------------------- | ------------------------------------------------------ |
-| `rmbr_todo_create`     | Create a new todo; accepts optional enrichment fields  |
-| `rmbr_todo_list`       | List todos with optional status and enrichment filters |
-| `rmbr_todo_get`        | Get a single todo by ID                                |
-| `rmbr_todo_transition` | Transition a todo to a new status                      |
-| `rmbr_todo_enrich`     | Enrich a raw todo with title, priority, due date, goal |
+| Tool                   | Description                                                                                                 |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `rmbr_todo_create`     | Create a new todo; accepts optional enrichment fields                                                       |
+| `rmbr_todo_list`       | List todos with optional status, enrichment, and due date filters (`overdue`, `due_today`, `due_this_week`) |
+| `rmbr_todo_get`        | Get a single todo by ID                                                                                     |
+| `rmbr_todo_transition` | Transition a todo to a new status                                                                           |
+| `rmbr_todo_delete`     | Soft-delete a todo                                                                                          |
+| `rmbr_todo_restore`    | Restore a soft-deleted todo                                                                                 |
+| `rmbr_todo_enrich`     | Enrich a raw todo with title, priority, due date, goal                                                      |

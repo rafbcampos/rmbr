@@ -27,4 +27,10 @@ export const studyMigrations: readonly Migration[] = [
     up: 'CREATE INDEX idx_study_topics_status ON study_topics(status)',
     down: 'DROP INDEX IF EXISTS idx_study_topics_status',
   },
+  {
+    version: 502,
+    description: 'Add deleted_at column to study_topics',
+    up: 'ALTER TABLE study_topics ADD COLUMN deleted_at TEXT DEFAULT NULL',
+    down: 'SELECT 1 -- SQLite does not support DROP COLUMN easily',
+  },
 ];

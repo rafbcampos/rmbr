@@ -226,4 +226,35 @@ describe('SlackService', () => {
       expect(updated.updated_at).toBeDefined();
     });
   });
+
+  describe('soft-delete', () => {
+    it('excludes soft-deleted messages from list by default', () => {
+      insertSlackMessage(db, { raw_content: 'Active message' });
+      const id2 = insertSlackMessage(db, { raw_content: 'Deleted message' });
+      SlackService.softDeleteEntity(db, id2);
+
+      const result = SlackService.list(db);
+      expect(result.total).toBe(1);
+      expect(result.data).toHaveLength(1);
+    });
+
+    it('includes soft-deleted messages when includeDeleted is true', () => {
+      insertSlackMessage(db, { raw_content: 'Active message' });
+      const id2 = insertSlackMessage(db, { raw_content: 'Deleted message' });
+      SlackService.softDeleteEntity(db, id2);
+
+      const result = SlackService.list(db, { includeDeleted: true });
+      expect(result.total).toBe(2);
+      expect(result.data).toHaveLength(2);
+    });
+
+    it('soft-delete and restore round-trip', () => {
+      const id = insertSlackMessage(db, { raw_content: 'Round-trip message' });
+      SlackService.softDeleteEntity(db, id);
+      expect(SlackService.list(db).total).toBe(0);
+
+      SlackService.restoreEntity(db, id);
+      expect(SlackService.list(db).total).toBe(1);
+    });
+  });
 });

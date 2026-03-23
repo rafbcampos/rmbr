@@ -5,6 +5,7 @@ import { goalsMigrations as migrations } from '../../../src/modules/goals/schema
 import { goalsTools } from '../../../src/modules/goals/tools.ts';
 import { GoalStatus, Quarter, EnrichmentStatus } from '../../../src/core/types.ts';
 import type { McpToolDefinition } from '../../../src/core/module-contract.ts';
+import { getDataArray } from '../../helpers/tool-result.ts';
 
 function findTool(name: string): McpToolDefinition {
   const tool = goalsTools.find(t => t.name === name);
@@ -66,7 +67,7 @@ describe('goals tools', () => {
 
       expect(result.total).toBe(2);
       expect(result.page).toBe(1);
-      expect((result.data as unknown[]).length).toBe(2);
+      expect(getDataArray(result).length).toBe(2);
     });
 
     it('should filter by status', async () => {
@@ -77,7 +78,7 @@ describe('goals tools', () => {
       const result = await tool.handler(db, { status: GoalStatus.Active });
 
       expect(result.total).toBe(1);
-      const data = result.data as Array<Record<string, unknown>>;
+      const data = getDataArray(result);
       expect(data[0]?.status).toBe(GoalStatus.Active);
     });
 
@@ -96,7 +97,7 @@ describe('goals tools', () => {
       const result = await tool.handler(db, { quarter: Quarter.Q1 });
 
       expect(result.total).toBe(1);
-      const data = result.data as Array<Record<string, unknown>>;
+      const data = getDataArray(result);
       expect(data[0]?.quarter).toBe(Quarter.Q1);
     });
 
@@ -115,7 +116,7 @@ describe('goals tools', () => {
       const result = await tool.handler(db, { year: 2026 });
 
       expect(result.total).toBe(1);
-      const data = result.data as Array<Record<string, unknown>>;
+      const data = getDataArray(result);
       expect(data[0]?.year).toBe(2026);
     });
 
@@ -130,7 +131,7 @@ describe('goals tools', () => {
       expect(result.page).toBe(2);
       expect(result.pageSize).toBe(2);
       expect(result.totalPages).toBe(3);
-      expect((result.data as unknown[]).length).toBe(2);
+      expect(getDataArray(result).length).toBe(2);
     });
   });
 
@@ -161,12 +162,10 @@ describe('goals tools', () => {
       expect(result.status).toBe(GoalStatus.Active);
     });
 
-    it('should return error for invalid status string', async () => {
+    it('should throw for invalid status string', async () => {
       await createTool.handler(db, { raw_input: 'Goal' });
 
-      const result = await tool.handler(db, { id: 1, status: 'bogus' });
-
-      expect(result.error).toBe('Invalid status: bogus');
+      await expect(tool.handler(db, { id: 1, status: 'bogus' })).rejects.toThrow();
     });
   });
 
@@ -245,7 +244,7 @@ describe('goals tools', () => {
 
       expect(result.count).toBe(2);
       expect(result.goal_id).toBe(1);
-      expect((result.data as unknown[]).length).toBe(2);
+      expect(getDataArray(result).length).toBe(2);
     });
 
     it('should return zero count for goal with no narratives', async () => {
@@ -254,7 +253,7 @@ describe('goals tools', () => {
       const result = await tool.handler(db, { goal_id: 1 });
 
       expect(result.count).toBe(0);
-      expect((result.data as unknown[]).length).toBe(0);
+      expect(getDataArray(result).length).toBe(0);
     });
   });
 
@@ -273,15 +272,14 @@ describe('goals tools', () => {
 
       expect(result.goal_count).toBe(1);
       expect(result.has_existing_review).toBe(false);
-      const resultGoals = result.goals as Array<Record<string, unknown>>;
-      expect(resultGoals.length).toBe(1);
-      expect(resultGoals[0]?.quarter).toBe(Quarter.Q1);
+      const goalsData = result.goals;
+      if (!Array.isArray(goalsData)) throw new Error('Expected goals to be an array');
+      expect(goalsData.length).toBe(1);
+      expect(goalsData[0]?.quarter).toBe(Quarter.Q1);
     });
 
-    it('should return error for invalid quarter', async () => {
-      const result = await tool.handler(db, { quarter: 'Q9', year: 2026 });
-
-      expect(result.error).toBe('Invalid quarter: Q9');
+    it('should throw for invalid quarter', async () => {
+      await expect(tool.handler(db, { quarter: 'Q9', year: 2026 })).rejects.toThrow();
     });
   });
 
@@ -309,17 +307,17 @@ describe('goals tools', () => {
       expect(typeof result.updated_at).toBe('string');
     });
 
-    it('should return error for invalid quarter', async () => {
-      const result = await tool.handler(db, {
-        quarter: 'invalid',
-        year: 2026,
-        what_went_well: 'x',
-        improvements: 'x',
-        kpi_summary: 'x',
-        generated_narrative: 'x',
-      });
-
-      expect(result.error).toBe('Invalid quarter: invalid');
+    it('should throw for invalid quarter', async () => {
+      await expect(
+        tool.handler(db, {
+          quarter: 'invalid',
+          year: 2026,
+          what_went_well: 'x',
+          improvements: 'x',
+          kpi_summary: 'x',
+          generated_narrative: 'x',
+        }),
+      ).rejects.toThrow();
     });
   });
 });

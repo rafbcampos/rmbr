@@ -68,6 +68,8 @@ All rmbr modules expose their functionality as MCP tools. Each tool name is pref
 | `rmbr_todo_get`        | Get a single todo by ID.                                                              |
 | `rmbr_todo_transition` | Transition a todo to a new status (start, pause, done, cancel).                       |
 | `rmbr_todo_enrich`     | Enrich a todo with title, priority, due date, and goal link.                          |
+| `rmbr_todo_delete`     | Soft-delete a todo.                                                                   |
+| `rmbr_todo_restore`    | Restore a soft-deleted todo.                                                          |
 
 ### Goals
 
@@ -82,15 +84,20 @@ All rmbr modules expose their functionality as MCP tools. Each tool name is pref
 | `rmbr_goal_get_star_narratives`   | Retrieve all STAR narratives for a goal.                               |
 | `rmbr_goal_quarterly_review_data` | Get aggregated data for a quarterly review.                            |
 | `rmbr_goal_save_quarterly_review` | Save a generated quarterly review.                                     |
+| `rmbr_goal_related`               | Get all entities linked to a goal (todos, kudos, study, slack).        |
+| `rmbr_goal_delete`                | Soft-delete a goal.                                                    |
+| `rmbr_goal_restore`               | Restore a soft-deleted goal.                                           |
 
 ### Kudos
 
-| Tool                | Description                                                               |
-| ------------------- | ------------------------------------------------------------------------- |
-| `rmbr_kudos_create` | Create a kudos entry. Accepts enrichment fields for single-step creation. |
-| `rmbr_kudos_list`   | List kudos with optional direction filter.                                |
-| `rmbr_kudos_get`    | Get a single kudos entry by ID.                                           |
-| `rmbr_kudos_enrich` | Enrich kudos with person, direction, summary, context, and goal link.     |
+| Tool                 | Description                                                               |
+| -------------------- | ------------------------------------------------------------------------- |
+| `rmbr_kudos_create`  | Create a kudos entry. Accepts enrichment fields for single-step creation. |
+| `rmbr_kudos_list`    | List kudos with optional direction filter.                                |
+| `rmbr_kudos_get`     | Get a single kudos entry by ID.                                           |
+| `rmbr_kudos_enrich`  | Enrich kudos with person, direction, summary, context, and goal link.     |
+| `rmbr_kudos_delete`  | Soft-delete a kudos entry.                                                |
+| `rmbr_kudos_restore` | Restore a soft-deleted kudos entry.                                       |
 
 ### TIL
 
@@ -102,6 +109,8 @@ All rmbr modules expose their functionality as MCP tools. Each tool name is pref
 | `rmbr_til_search`  | Full-text search across all TIL entries.                                |
 | `rmbr_til_domains` | List all known domains.                                                 |
 | `rmbr_til_enrich`  | Enrich a TIL with title, content, domain, and tags.                     |
+| `rmbr_til_delete`  | Soft-delete a TIL entry.                                                |
+| `rmbr_til_restore` | Restore a soft-deleted TIL entry.                                       |
 
 ### Study
 
@@ -115,6 +124,8 @@ All rmbr modules expose their functionality as MCP tools. Each tool name is pref
 | `rmbr_study_add_resource` | Add a resource URL to a study topic.                                      |
 | `rmbr_study_next`         | Get the next queued study topic.                                          |
 | `rmbr_study_enrich`       | Enrich a study topic with title, domain, and goal link.                   |
+| `rmbr_study_delete`       | Soft-delete a study topic.                                                |
+| `rmbr_study_restore`      | Restore a soft-deleted study topic.                                       |
 
 ### Slack
 
@@ -127,6 +138,8 @@ All rmbr modules expose their functionality as MCP tools. Each tool name is pref
 | `rmbr_slack_link_todo`      | Link a Slack message to a todo.                                        |
 | `rmbr_slack_link_goal`      | Link a Slack message to a goal.                                        |
 | `rmbr_slack_mark_processed` | Mark a Slack message as processed.                                     |
+| `rmbr_slack_delete`         | Soft-delete a Slack message.                                           |
+| `rmbr_slack_restore`        | Restore a soft-deleted Slack message.                                  |
 
 ### Tags
 
@@ -137,6 +150,22 @@ All rmbr modules expose their functionality as MCP tools. Each tool name is pref
 | `rmbr_tag_list`         | List all tags.                                                  |
 | `rmbr_tag_get_entities` | Get all entities with a given tag, optionally filtered by type. |
 | `rmbr_entity_tags`      | Get all tags for a specific entity.                             |
+
+### Search
+
+| Tool          | Description                                                          |
+| ------------- | -------------------------------------------------------------------- |
+| `rmbr_search` | Search across all modules (todos, goals, kudos, TILs, study, slack). |
+
+## Skills for Claude Code
+
+rmbr bundles AI workflow skills that guide Claude through multi-step workflows. Install them with:
+
+```bash
+rmbr skill install
+```
+
+This creates `/rmbr-*` slash commands in Claude Code (e.g., `/rmbr-weekly-standup`). See the [CLI Usage guide](/guide/cli-usage#skills) for the full list of available skills.
 
 ## Single-Step Creation
 
@@ -172,6 +201,7 @@ The AI assistant recognizes this as a completed task and uses rmbr tools behind 
    ```
 
 3. **Creates a TIL** via `rmbr_til_create` to capture the learning:
+
    ```json
    {
      "raw_input": "Session timeouts were caused by login flow not refreshing tokens",

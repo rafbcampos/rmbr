@@ -3,7 +3,7 @@ import type { DrizzleDatabase } from '../../../src/core/drizzle.ts';
 import { createTestDb } from '../../helpers/db.ts';
 import { todoMigrations } from '../../../src/modules/todo/schema.ts';
 import { goalsMigrations as goalMigrations } from '../../../src/modules/goals/schema.ts';
-import * as TodoService from '../../../src/modules/todo/service.ts';
+import { TodoService } from '../../../src/modules/todo/service.ts';
 import { NotFoundError, InvalidTransitionError } from '../../../src/core/errors.ts';
 import { TodoStatus, EnrichmentStatus } from '../../../src/core/types.ts';
 import { insertGoal, insertTodo } from '../../helpers/fixtures.ts';
@@ -225,6 +225,102 @@ describe('TodoService', () => {
 
     it('throws NotFoundError for missing todo', () => {
       expect(() => TodoService.enrich(db, 999, { title: 'Nope' })).toThrow(NotFoundError);
+    });
+  });
+
+  describe('soft-delete', () => {
+    it('excludes soft-deleted todos from list by default', () => {
+      const id1 = insertTodo(db, { raw_input: 'Active todo' });
+      const id2 = insertTodo(db, { raw_input: 'Deleted todo' });
+      TodoService.softDeleteEntity(db, id2);
+
+      const result = TodoService.list(db);
+      expect(result.total).toBe(1);
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0]?.id).toBe(id1);
+    });
+
+    it('includes soft-deleted todos when includeDeleted is true', () => {
+      insertTodo(db, { raw_input: 'Active todo' });
+      const id2 = insertTodo(db, { raw_input: 'Deleted todo' });
+      TodoService.softDeleteEntity(db, id2);
+
+      const result = TodoService.list(db, { includeDeleted: true });
+      expect(result.total).toBe(2);
+      expect(result.data).toHaveLength(2);
+    });
+
+    it('soft-delete and restore round-trip', () => {
+      const id = insertTodo(db, { raw_input: 'Round-trip todo' });
+      TodoService.softDeleteEntity(db, id);
+
+      const afterDelete = TodoService.list(db);
+      expect(afterDelete.total).toBe(0);
+
+      TodoService.restoreEntity(db, id);
+
+      const afterRestore = TodoService.list(db);
+      expect(afterRestore.total).toBe(1);
+      expect(afterRestore.data[0]?.id).toBe(id);
+    });
+
+    it('throws NotFoundError when soft-deleting non-existent todo', () => {
+      expect(() => TodoService.softDeleteEntity(db, 999)).toThrow(NotFoundError);
+    });
+
+    it('throws NotFoundError when restoring non-existent todo', () => {
+      expect(() => TodoService.restoreEntity(db, 999)).toThrow(NotFoundError);
+    });
+  });
+
+  describe('due date filters', () => {
+    it('overdue filter returns past-due non-terminal todos', () => {
+      const todo = TodoService.create(db, 'overdue task');
+      TodoService.enrich(db, todo.id, { due_date: '2020-01-01' });
+      TodoService.transition(db, todo.id, TodoStatus.InProgress);
+
+      const result = TodoService.list(db, { overdue: true });
+      expect(result.data.some(t => t.id === todo.id)).toBe(true);
+    });
+
+    it('overdue filter excludes done todos', () => {
+      const todo = TodoService.create(db, 'done overdue');
+      TodoService.enrich(db, todo.id, { due_date: '2020-01-01' });
+      TodoService.transition(db, todo.id, TodoStatus.InProgress);
+      TodoService.transition(db, todo.id, TodoStatus.Done);
+
+      const result = TodoService.list(db, { overdue: true });
+      expect(result.data.some(t => t.id === todo.id)).toBe(false);
+    });
+
+    it('overdue filter excludes todos with null due_date', () => {
+      TodoService.create(db, 'no due date');
+
+      const result = TodoService.list(db, { overdue: true });
+      expect(result.data.every(t => t.due_date !== null)).toBe(true);
+    });
+
+    it('dueToday filter returns todos due today', () => {
+      const todo = TodoService.create(db, 'due today');
+      const today = new Date().toISOString().split('T')[0]!;
+      TodoService.enrich(db, todo.id, { due_date: today });
+
+      const result = TodoService.list(db, { dueToday: true });
+      expect(result.data.some(t => t.id === todo.id)).toBe(true);
+    });
+
+    it('overdue filter excludes soft-deleted todos', () => {
+      const todo = TodoService.create(db, 'overdue then deleted');
+      TodoService.enrich(db, todo.id, { due_date: '2020-01-01' });
+      TodoService.transition(db, todo.id, TodoStatus.InProgress);
+
+      const beforeDelete = TodoService.list(db, { overdue: true });
+      expect(beforeDelete.data.some(t => t.id === todo.id)).toBe(true);
+
+      TodoService.softDeleteEntity(db, todo.id);
+
+      const afterDelete = TodoService.list(db, { overdue: true });
+      expect(afterDelete.data.some(t => t.id === todo.id)).toBe(false);
     });
   });
 });

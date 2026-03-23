@@ -1,27 +1,10 @@
 import { z } from 'zod';
 import type { McpToolDefinition, ToolArgs, ToolResult } from '../../core/module-contract.ts';
-import { TagService } from './service.ts';
-import type { Tag, EntityTag } from './types.ts';
-import { isEntityType } from './types.ts';
+import { ValidationError } from '../../core/errors.ts';
 import { getString, getNumber } from '../../shared/tool-args.ts';
-
-function tagToToolResult(tag: Tag): ToolResult {
-  return {
-    id: tag.id,
-    name: tag.name,
-    created_at: tag.created_at,
-  };
-}
-
-function entityTagToToolResult(et: EntityTag): ToolResult {
-  return {
-    id: et.id,
-    tag_id: et.tag_id,
-    entity_type: et.entity_type,
-    entity_id: et.entity_id,
-    created_at: et.created_at,
-  };
-}
+import { entityToToolResult } from '../../shared/tool-result.ts';
+import { TagService } from './service.ts';
+import { isEntityType } from './types.ts';
 
 export const tagsTools: readonly McpToolDefinition[] = [
   {
@@ -39,7 +22,7 @@ export const tagsTools: readonly McpToolDefinition[] = [
       const tagName = getString(args, 'tag');
       const entityTypeStr = getString(args, 'entity_type');
       if (!isEntityType(entityTypeStr)) {
-        throw new Error(`Invalid entity type: ${entityTypeStr}`);
+        throw new ValidationError(`Invalid entity type: '${entityTypeStr}'`);
       }
       const entityTag = TagService.tagEntity(
         db,
@@ -47,7 +30,7 @@ export const tagsTools: readonly McpToolDefinition[] = [
         entityTypeStr,
         getNumber(args, 'entity_id'),
       );
-      return entityTagToToolResult(entityTag);
+      return entityToToolResult(entityTag);
     },
   },
   {
@@ -64,7 +47,7 @@ export const tagsTools: readonly McpToolDefinition[] = [
       const tagName = getString(args, 'tag');
       const entityTypeStr = getString(args, 'entity_type');
       if (!isEntityType(entityTypeStr)) {
-        throw new Error(`Invalid entity type: ${entityTypeStr}`);
+        throw new ValidationError(`Invalid entity type: '${entityTypeStr}'`);
       }
       TagService.untagEntity(db, tagName, entityTypeStr, getNumber(args, 'entity_id'));
       return { success: true };
@@ -76,9 +59,7 @@ export const tagsTools: readonly McpToolDefinition[] = [
     schema: {},
     handler: async (db): Promise<ToolResult> => {
       const allTags = TagService.listTags(db);
-      return {
-        data: allTags.map(tagToToolResult),
-      };
+      return { data: allTags.map(entityToToolResult) };
     },
   },
   {
@@ -97,9 +78,7 @@ export const tagsTools: readonly McpToolDefinition[] = [
       const entityType =
         entityTypeStr !== undefined && isEntityType(entityTypeStr) ? entityTypeStr : undefined;
       const entities = TagService.getEntitiesByTag(db, tagName, entityType);
-      return {
-        data: entities.map(entityTagToToolResult),
-      };
+      return { data: entities.map(entityToToolResult) };
     },
   },
   {
@@ -114,16 +93,14 @@ export const tagsTools: readonly McpToolDefinition[] = [
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
       const entityTypeStr = getString(args, 'entity_type');
       if (!isEntityType(entityTypeStr)) {
-        throw new Error(`Invalid entity type: ${entityTypeStr}`);
+        throw new ValidationError(`Invalid entity type: '${entityTypeStr}'`);
       }
       const entityTags = TagService.getTagsForEntity(
         db,
         entityTypeStr,
         getNumber(args, 'entity_id'),
       );
-      return {
-        data: entityTags.map(tagToToolResult),
-      };
+      return { data: entityTags.map(entityToToolResult) };
     },
   },
 ];

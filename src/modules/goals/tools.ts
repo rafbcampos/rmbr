@@ -1,38 +1,18 @@
 import { z } from 'zod';
 import type { McpToolDefinition, ToolArgs, ToolResult } from '../../core/module-contract.ts';
 import { ENRICHMENT_PROMPTS } from '../../core/prompts.ts';
-import * as GoalService from './service.ts';
-import type { Goal, StarNarrative } from './types.ts';
+import { ValidationError } from '../../core/errors.ts';
+import { getString, getNumber, extractFields, extractPagination } from '../../shared/tool-args.ts';
+import { entityToToolResult, paginatedToToolResult } from '../../shared/tool-result.ts';
+import { GoalService } from './service.ts';
+import type { GoalFilters } from './service.ts';
 import { isGoalStatus, isQuarter } from './types.ts';
-import { getString, getNumber } from '../../shared/tool-args.ts';
 
-function goalToToolResult(goal: Goal): ToolResult {
-  return {
-    id: goal.id,
-    raw_input: goal.raw_input,
-    title: goal.title,
-    status: goal.status,
-    quarter: goal.quarter,
-    year: goal.year,
-    kpis: goal.kpis,
-    enrichment_status: goal.enrichment_status,
-    created_at: goal.created_at,
-    updated_at: goal.updated_at,
-  };
-}
-
-function narrativeToToolResult(n: StarNarrative): ToolResult {
-  return {
-    id: n.id,
-    goal_id: n.goal_id,
-    situation: n.situation,
-    task: n.task,
-    action: n.action,
-    result: n.result,
-    created_at: n.created_at,
-    updated_at: n.updated_at,
-  };
-}
+const GOAL_ENRICH_SPECS = [
+  { name: 'title', type: 'string' as const },
+  { name: 'kpis', type: 'string' as const },
+  { name: 'year', type: 'number' as const },
+];
 
 export const goalsTools: readonly McpToolDefinition[] = [
   {
@@ -47,16 +27,16 @@ export const goalsTools: readonly McpToolDefinition[] = [
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
       const goal = GoalService.create(db, getString(args, 'raw_input'));
-      const fields: Record<string, string | number> = {};
-      if (typeof args.title === 'string') fields['title'] = args.title;
-      if (typeof args.quarter === 'string') fields['quarter'] = args.quarter;
-      if (typeof args.year === 'number') fields['year'] = args.year;
-      if (typeof args.kpis === 'string') fields['kpis'] = args.kpis;
+      const { fields } = extractFields(args, GOAL_ENRICH_SPECS);
+      const quarterStr = typeof args.quarter === 'string' ? args.quarter : undefined;
+      if (quarterStr !== undefined && isQuarter(quarterStr)) {
+        fields['quarter'] = quarterStr;
+      }
       if (Object.keys(fields).length > 0) {
         const enriched = GoalService.enrich(db, goal.id, fields);
-        return goalToToolResult(enriched);
+        return entityToToolResult(enriched);
       }
-      return goalToToolResult(goal);
+      return entityToToolResult(goal);
     },
   },
   {
@@ -69,29 +49,20 @@ export const goalsTools: readonly McpToolDefinition[] = [
         .describe('Filter by status: draft, active, completed, abandoned'),
       quarter: z.string().optional().describe('Filter by quarter: Q1, Q2, Q3, Q4'),
       year: z.number().optional().describe('Filter by year'),
+      include_deleted: z.boolean().optional().describe('Include soft-deleted goals'),
       page: z.number().optional().describe('Page number'),
       page_size: z.number().optional().describe('Page size'),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
       const statusStr = typeof args.status === 'string' ? args.status : undefined;
       const quarterStr = typeof args.quarter === 'string' ? args.quarter : undefined;
-      const filters: GoalService.GoalFilters = {
+      const filters: GoalFilters = {
         status: statusStr !== undefined && isGoalStatus(statusStr) ? statusStr : undefined,
         quarter: quarterStr !== undefined && isQuarter(quarterStr) ? quarterStr : undefined,
         year: typeof args.year === 'number' ? args.year : undefined,
+        includeDeleted: args.include_deleted === true ? true : undefined,
       };
-      const pagination = {
-        page: typeof args.page === 'number' ? args.page : 1,
-        pageSize: typeof args.page_size === 'number' ? args.page_size : 20,
-      };
-      const result = GoalService.list(db, filters, pagination);
-      return {
-        total: result.total,
-        page: result.page,
-        pageSize: result.pageSize,
-        totalPages: result.totalPages,
-        data: result.data.map(goalToToolResult),
-      };
+      return paginatedToToolResult(GoalService.list(db, filters, extractPagination(args)));
     },
   },
   {
@@ -101,8 +72,7 @@ export const goalsTools: readonly McpToolDefinition[] = [
       id: z.number().describe('Goal ID'),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
-      const goal = GoalService.getById(db, getNumber(args, 'id'));
-      return goalToToolResult(goal);
+      return entityToToolResult(GoalService.getById(db, getNumber(args, 'id')));
     },
   },
   {
@@ -115,10 +85,9 @@ export const goalsTools: readonly McpToolDefinition[] = [
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
       const statusStr = getString(args, 'status');
       if (!isGoalStatus(statusStr)) {
-        return { error: `Invalid status: ${statusStr}` };
+        throw new ValidationError(`Invalid status: '${statusStr}'`);
       }
-      const goal = GoalService.transition(db, getNumber(args, 'id'), statusStr);
-      return goalToToolResult(goal);
+      return entityToToolResult(GoalService.transition(db, getNumber(args, 'id'), statusStr));
     },
   },
   {
@@ -132,13 +101,12 @@ export const goalsTools: readonly McpToolDefinition[] = [
       kpis: z.string().optional().describe('KPIs as JSON array'),
     },
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
-      const fields: Record<string, string | number> = {};
-      if (typeof args.title === 'string') fields['title'] = args.title;
-      if (typeof args.quarter === 'string') fields['quarter'] = args.quarter;
-      if (typeof args.year === 'number') fields['year'] = args.year;
-      if (typeof args.kpis === 'string') fields['kpis'] = args.kpis;
-      const goal = GoalService.enrich(db, getNumber(args, 'id'), fields);
-      return goalToToolResult(goal);
+      const { fields } = extractFields(args, GOAL_ENRICH_SPECS);
+      const quarterStr = typeof args.quarter === 'string' ? args.quarter : undefined;
+      if (quarterStr !== undefined && isQuarter(quarterStr)) {
+        fields['quarter'] = quarterStr;
+      }
+      return entityToToolResult(GoalService.enrich(db, getNumber(args, 'id'), fields));
     },
   },
   {
@@ -158,7 +126,7 @@ export const goalsTools: readonly McpToolDefinition[] = [
         action: getString(args, 'action'),
         result: getString(args, 'result'),
       });
-      return narrativeToToolResult(narrative);
+      return entityToToolResult(narrative);
     },
   },
   {
@@ -172,7 +140,7 @@ export const goalsTools: readonly McpToolDefinition[] = [
       return {
         count: narratives.length,
         goal_id: getNumber(args, 'goal_id'),
-        data: narratives.map(narrativeToToolResult),
+        data: narratives.map(entityToToolResult),
       };
     },
   },
@@ -186,14 +154,14 @@ export const goalsTools: readonly McpToolDefinition[] = [
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
       const quarterStr = getString(args, 'quarter');
       if (!isQuarter(quarterStr)) {
-        return { error: `Invalid quarter: ${quarterStr}` };
+        throw new ValidationError(`Invalid quarter: '${quarterStr}'`);
       }
       const data = GoalService.getQuarterlyReviewData(db, quarterStr, getNumber(args, 'year'));
       return {
         goal_count: data.goals.length,
         narrative_count: data.starNarratives.length,
         has_existing_review: data.existingReview !== null,
-        goals: data.goals.map(goalToToolResult),
+        goals: data.goals.map(entityToToolResult),
       };
     },
   },
@@ -211,7 +179,7 @@ export const goalsTools: readonly McpToolDefinition[] = [
     handler: async (db, args: ToolArgs): Promise<ToolResult> => {
       const quarterStr = getString(args, 'quarter');
       if (!isQuarter(quarterStr)) {
-        return { error: `Invalid quarter: ${quarterStr}` };
+        throw new ValidationError(`Invalid quarter: '${quarterStr}'`);
       }
       const review = GoalService.saveQuarterlyReview(db, {
         quarter: quarterStr,
@@ -221,16 +189,52 @@ export const goalsTools: readonly McpToolDefinition[] = [
         kpi_summary: getString(args, 'kpi_summary'),
         generated_narrative: getString(args, 'generated_narrative'),
       });
+      return entityToToolResult(review);
+    },
+  },
+  {
+    name: 'rmbr_goal_delete',
+    description: 'Soft-delete a goal',
+    schema: {
+      id: z.number().describe('Goal ID'),
+    },
+    annotations: { destructiveHint: true },
+    handler: async (db, args: ToolArgs): Promise<ToolResult> => {
+      const id = getNumber(args, 'id');
+      GoalService.softDeleteEntity(db, id);
+      return { id, deleted: true };
+    },
+  },
+  {
+    name: 'rmbr_goal_restore',
+    description: 'Restore a soft-deleted goal',
+    schema: {
+      id: z.number().describe('Goal ID'),
+    },
+    handler: async (db, args: ToolArgs): Promise<ToolResult> => {
+      const id = getNumber(args, 'id');
+      GoalService.restoreEntity(db, id);
+      return entityToToolResult(GoalService.getById(db, id));
+    },
+  },
+  {
+    name: 'rmbr_goal_related',
+    description: 'Get all entities related to a goal (todos, kudos, study topics, slack messages)',
+    schema: {
+      goal_id: z.number().describe('Goal ID'),
+    },
+    annotations: { readOnlyHint: true },
+    handler: async (db, args: ToolArgs): Promise<ToolResult> => {
+      const related = GoalService.getRelatedEntities(db, getNumber(args, 'goal_id'));
       return {
-        id: review.id,
-        quarter: review.quarter,
-        year: review.year,
-        what_went_well: review.what_went_well,
-        improvements: review.improvements,
-        kpi_summary: review.kpi_summary,
-        generated_narrative: review.generated_narrative,
-        created_at: review.created_at,
-        updated_at: review.updated_at,
+        todo_count: related.todos.length,
+        kudos_count: related.kudos.length,
+        study_count: related.studyTopics.length,
+        slack_count: related.slackMessages.length,
+        todos: related.todos.map(entityToToolResult),
+        kudos: related.kudos.map(entityToToolResult),
+        study_topics: related.studyTopics.map(entityToToolResult),
+        slack_messages: related.slackMessages.map(entityToToolResult),
       };
     },
   },

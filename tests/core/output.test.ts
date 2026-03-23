@@ -5,11 +5,11 @@ import type { PaginatedResult } from '../../src/core/types.ts';
 describe('output', () => {
   describe('formatTable', () => {
     it('should format a basic table with aligned columns', () => {
-      const headers = ['ID', 'Name', 'Status'] as const;
-      const rows = [
+      const headers: readonly string[] = ['ID', 'Name', 'Status'];
+      const rows: readonly (readonly string[])[] = [
         ['1', 'Fix bug', 'open'],
         ['2', 'Write docs', 'done'],
-      ] as const;
+      ];
 
       const result = formatTable(headers, rows);
       const lines = result.split('\n');
@@ -22,11 +22,11 @@ describe('output', () => {
     });
 
     it('should handle varying column widths based on content', () => {
-      const headers = ['A', 'B'] as const;
-      const rows = [
+      const headers: readonly string[] = ['A', 'B'];
+      const rows: readonly (readonly string[])[] = [
         ['short', 'x'],
         ['a', 'longer value'],
-      ] as const;
+      ];
 
       const result = formatTable(headers, rows);
       const lines = result.split('\n');
@@ -38,8 +38,8 @@ describe('output', () => {
     });
 
     it('should handle a single row', () => {
-      const headers = ['Name'] as const;
-      const rows = [['Alice']] as const;
+      const headers: readonly string[] = ['Name'];
+      const rows: readonly (readonly string[])[] = [['Alice']];
 
       const result = formatTable(headers, rows);
       const lines = result.split('\n');

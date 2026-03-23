@@ -21,12 +21,15 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
     .command('list')
     .description('List kudos')
     .option('--direction <direction>', 'Filter by direction (given or received)')
+    .option('--include-deleted', 'Include soft-deleted kudos')
     .option('--page <page>', 'Page number', '1')
-    .action((opts: { direction?: string; page?: string }) => {
-      const filters: KudosFilters =
-        opts.direction !== undefined && isKudosDirection(opts.direction)
+    .action((opts: { direction?: string; includeDeleted?: boolean; page?: string }) => {
+      const filters: KudosFilters = {
+        ...(opts.direction !== undefined && isKudosDirection(opts.direction)
           ? { direction: opts.direction }
-          : {};
+          : {}),
+        ...(opts.includeDeleted === true ? { includeDeleted: true } : {}),
+      };
       const page = parseId(opts.page ?? '1', 'page');
       const result = KudosService.list(db, filters, { page, pageSize: 20 });
       console.log(JSON.stringify(result, null, 2));
@@ -81,4 +84,22 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
         console.log(JSON.stringify(result, null, 2));
       },
     );
+
+  kudos
+    .command('delete')
+    .description('Soft-delete a kudos entry')
+    .argument('<id>', 'Kudos ID')
+    .action((id: string) => {
+      KudosService.softDeleteEntity(db, parseId(id, 'kudos'));
+      console.log(`Kudos #${id} soft-deleted`);
+    });
+
+  kudos
+    .command('restore')
+    .description('Restore a soft-deleted kudos entry')
+    .argument('<id>', 'Kudos ID')
+    .action((id: string) => {
+      KudosService.restoreEntity(db, parseId(id, 'kudos'));
+      console.log(`Kudos #${id} restored`);
+    });
 }

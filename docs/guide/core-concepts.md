@@ -56,6 +56,10 @@ const TodoStatus = {
 
 This approach provides the same type safety as enums with better runtime behavior — the values are plain strings, they work naturally with JSON serialization, and they avoid the quirks of TypeScript's enum implementation.
 
+## Soft-Delete
+
+Every entity supports soft-delete. When you delete an entity, it sets a `deleted_at` timestamp rather than removing the row from the database. Soft-deleted entities are hidden from list commands by default but can be included with the `--include-deleted` flag. Deleted entities can be restored at any time with the `restore` command, which clears the `deleted_at` timestamp.
+
 ## Module System
 
 Every module implements the `RmbrModule` interface, which requires four members:

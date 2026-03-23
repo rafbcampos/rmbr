@@ -5,7 +5,8 @@ import { insertTil } from '../../helpers/fixtures.ts';
 import { tilMigrations } from '../../../src/modules/til/schema.ts';
 import { tilTools } from '../../../src/modules/til/tools.ts';
 import { EnrichmentStatus } from '../../../src/core/types.ts';
-import type { McpToolDefinition, ToolResult } from '../../../src/core/module-contract.ts';
+import type { McpToolDefinition } from '../../../src/core/module-contract.ts';
+import { getDataArray } from '../../helpers/tool-result.ts';
 
 function findTool(name: string): McpToolDefinition {
   const tool = tilTools.find(t => t.name === name);
@@ -135,7 +136,7 @@ describe('TIL tools', () => {
       insertTil(db, { raw_input: 'unrelated stuff' });
 
       const result = await tool.handler(db, { query: 'generics' });
-      const data = result.data as ToolResult[];
+      const data = getDataArray(result);
       expect(data.length).toBeGreaterThanOrEqual(1);
     });
 
@@ -155,7 +156,9 @@ describe('TIL tools', () => {
       insertTil(db, { raw_input: 'c', domain: 'rust' });
 
       const result = await tool.handler(db, {});
-      const domains = (result.data as string).split(',');
+      const dataStr = result.data;
+      if (typeof dataStr !== 'string') throw new Error('Expected data to be a string');
+      const domains = dataStr.split(',');
       expect(domains).toContain('rust');
       expect(domains).toContain('typescript');
       expect(domains).toHaveLength(2);

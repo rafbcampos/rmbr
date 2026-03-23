@@ -1,25 +1,27 @@
-import { eq, count, desc, and, type SQL } from 'drizzle-orm';
+import { eq, desc, type SQL } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../core/drizzle.ts';
 import type { KudosDirection, PaginatedResult, PaginationParams } from '../../core/types.ts';
 import { NotFoundError } from '../../core/errors.ts';
-import { enrichEntity } from '../../shared/enrichment.ts';
-import { DEFAULT_PAGINATION, paginateResults } from '../../shared/pagination.ts';
+import { enrichEntity, toUpdateRecord } from '../../shared/enrichment.ts';
+import { listWithPagination } from '../../shared/list-with-pagination.ts';
+import { softDelete, restore, notDeletedCondition } from '../../shared/soft-delete.ts';
 import type { Kudos } from './types.ts';
 import { toKudos } from './types.ts';
 import { kudos as kudosTable } from './drizzle-schema.ts';
 
 export interface KudosFilters {
-  readonly direction?: KudosDirection;
-  readonly person?: string;
-  readonly goalId?: number;
+  readonly direction?: KudosDirection | undefined;
+  readonly person?: string | undefined;
+  readonly goalId?: number | undefined;
+  readonly includeDeleted?: boolean | undefined;
 }
 
 export interface KudosEnrichFields {
-  readonly direction?: KudosDirection;
-  readonly person?: string;
-  readonly summary?: string;
-  readonly context?: string;
-  readonly goal_id?: number;
+  readonly direction?: KudosDirection | undefined;
+  readonly person?: string | undefined;
+  readonly summary?: string | undefined;
+  readonly context?: string | undefined;
+  readonly goal_id?: number | undefined;
 }
 
 export const KudosService = {
@@ -31,9 +33,13 @@ export const KudosService = {
   list(
     db: DrizzleDatabase,
     filters: KudosFilters = {},
-    pagination: PaginationParams = DEFAULT_PAGINATION,
+    pagination?: PaginationParams,
   ): PaginatedResult<Kudos> {
     const conditions: SQL[] = [];
+
+    if (filters.includeDeleted !== true) {
+      conditions.push(notDeletedCondition(kudosTable.deleted_at));
+    }
 
     if (filters.direction !== undefined) {
       conditions.push(eq(kudosTable.direction, filters.direction));
@@ -45,22 +51,12 @@ export const KudosService = {
       conditions.push(eq(kudosTable.goal_id, filters.goalId));
     }
 
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-    const total =
-      db.select({ value: count() }).from(kudosTable).where(whereClause).get()?.value ?? 0;
-
-    const offset = (pagination.page - 1) * pagination.pageSize;
-    const rows = db
-      .select()
-      .from(kudosTable)
-      .where(whereClause)
-      .orderBy(desc(kudosTable.created_at))
-      .limit(pagination.pageSize)
-      .offset(offset)
-      .all();
-
-    return paginateResults({ data: rows.map(toKudos), total }, pagination);
+    return listWithPagination(
+      db,
+      { from: kudosTable, orderBy: desc(kudosTable.created_at), toEntity: toKudos },
+      conditions,
+      pagination,
+    );
   },
 
   getById(db: DrizzleDatabase, id: number): Kudos {
@@ -72,25 +68,15 @@ export const KudosService = {
   },
 
   enrich(db: DrizzleDatabase, id: number, fields: KudosEnrichFields): Kudos {
-    const updates: Record<string, string | number | null> = {};
-
-    if (fields.direction !== undefined) {
-      updates['direction'] = fields.direction;
-    }
-    if (fields.person !== undefined) {
-      updates['person'] = fields.person;
-    }
-    if (fields.summary !== undefined) {
-      updates['summary'] = fields.summary;
-    }
-    if (fields.context !== undefined) {
-      updates['context'] = fields.context;
-    }
-    if (fields.goal_id !== undefined) {
-      updates['goal_id'] = fields.goal_id;
-    }
-
-    enrichEntity(db, kudosTable, 'kudos', id, updates);
+    enrichEntity(db, kudosTable, 'kudos', id, toUpdateRecord(fields));
     return KudosService.getById(db, id);
+  },
+
+  softDeleteEntity(db: DrizzleDatabase, id: number): void {
+    softDelete(db, kudosTable, 'kudos', id);
+  },
+
+  restoreEntity(db: DrizzleDatabase, id: number): void {
+    restore(db, kudosTable, 'kudos', id);
   },
 };

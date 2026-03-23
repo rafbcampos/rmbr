@@ -32,14 +32,16 @@ Each TIL can be classified into a domain (e.g., `typescript`, `devops`, `sql`). 
 
 For full syntax details, see the [CLI Reference](/guide/cli-usage).
 
-| Command            | Description                            |
-| ------------------ | -------------------------------------- |
-| `rmbr til add`     | Create a new TIL from raw input        |
-| `rmbr til list`    | List TILs, optionally filter by domain |
-| `rmbr til show`    | Show a single TIL by ID                |
-| `rmbr til search`  | Full-text search across TILs           |
-| `rmbr til domains` | List all unique domains                |
-| `rmbr til enrich`  | Enrich a TIL with structured fields    |
+| Command            | Description                                                  |
+| ------------------ | ------------------------------------------------------------ |
+| `rmbr til add`     | Create a new TIL from raw input                              |
+| `rmbr til list`    | List TILs, optionally filter by domain (`--include-deleted`) |
+| `rmbr til show`    | Show a single TIL by ID                                      |
+| `rmbr til search`  | Full-text search across TILs                                 |
+| `rmbr til domains` | List all unique domains                                      |
+| `rmbr til delete`  | Soft-delete a TIL entry (hidden from lists by default)       |
+| `rmbr til restore` | Restore a soft-deleted TIL entry                             |
+| `rmbr til enrich`  | Enrich a TIL with structured fields                          |
 
 ## MCP Tools
 
@@ -50,4 +52,6 @@ For full syntax details, see the [CLI Reference](/guide/cli-usage).
 | `rmbr_til_get`     | Get a single TIL by ID                                 |
 | `rmbr_til_search`  | Full-text search across TILs                           |
 | `rmbr_til_domains` | List all unique domains                                |
+| `rmbr_til_delete`  | Soft-delete a TIL entry                                |
+| `rmbr_til_restore` | Restore a soft-deleted TIL entry                       |
 | `rmbr_til_enrich`  | Enrich a raw TIL with title, content, domain, and tags |

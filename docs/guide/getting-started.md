@@ -91,6 +91,16 @@ Tag any entity from any module for cross-cutting organization.
 rmbr tag add "urgent" todo 1
 ```
 
+## Install Skills for Claude Code
+
+If you use Claude Code, install rmbr's AI workflow skills as slash commands:
+
+```bash
+rmbr skill install
+```
+
+This gives you commands like `/rmbr-weekly-standup`, `/rmbr-slack-process`, `/rmbr-goal-plan`, and more. See `rmbr skill list` for all available skills.
+
 ## Next Steps
 
 - [CLI Usage](/guide/cli-usage) — Full reference for all commands and options
