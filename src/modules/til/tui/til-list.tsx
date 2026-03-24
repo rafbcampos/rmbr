@@ -1,6 +1,7 @@
 import { Box, Text } from 'ink';
 import type { Til } from '../types.ts';
 import { parseStringArray } from '../../../shared/json-array.ts';
+import { StatusDot } from '../../../shared/tui/status-dot.tsx';
 
 interface TilListProps {
   readonly tils: readonly Til[];
@@ -8,22 +9,22 @@ interface TilListProps {
 }
 
 function TilRow({ entry, isSelected }: { readonly entry: Til; readonly isSelected: boolean }) {
-  const prefix = isSelected ? '>' : ' ';
   const tagsCount = parseStringArray(entry.tags).length;
 
   return (
     <Box>
-      <Text bold={isSelected} {...(isSelected ? { color: 'white' } : {})}>
-        {prefix} #{entry.id}
+      <Text bold={isSelected} inverse={isSelected}>
+        {isSelected ? ' ▸ ' : '   '}
       </Text>
+      <Text dimColor>#{entry.id} </Text>
+      <StatusDot color={entry.domain !== null ? 'cyan' : 'gray'} filled={entry.domain !== null} />
       {entry.domain !== null ? (
-        <Text color="cyan"> [{entry.domain}]</Text>
+        <Text color="cyan"> {entry.domain.padEnd(12)} </Text>
       ) : (
-        <Text dimColor> [?]</Text>
+        <Text dimColor> {'—'.padEnd(12)} </Text>
       )}
-      <Text bold={isSelected}> {entry.title ?? entry.raw_input}</Text>
+      <Text bold={isSelected}>{entry.title ?? entry.raw_input}</Text>
       {tagsCount > 0 ? <Text dimColor> ({tagsCount} tags)</Text> : null}
-      <Text dimColor> {entry.created_at}</Text>
     </Box>
   );
 }
@@ -31,7 +32,7 @@ function TilRow({ entry, isSelected }: { readonly entry: Til; readonly isSelecte
 export function TilList({ tils, selectedIndex }: TilListProps) {
   if (tils.length === 0) {
     return (
-      <Box>
+      <Box paddingX={1}>
         <Text dimColor>No TILs match the current filters.</Text>
       </Box>
     );

@@ -5,6 +5,7 @@ export const KEY = {
   DOMAIN_CYCLE: 'd',
   COMPLETE: 'c',
   PARK: 'p',
+  EDIT: 'e',
   STATUS_ALL: '1',
   STATUS_QUEUED: '2',
   STATUS_IN_PROGRESS: '3',

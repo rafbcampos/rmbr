@@ -6,9 +6,9 @@ interface StatusBarProps {
 
 export function StatusBar({ domainFilter }: StatusBarProps) {
   return (
-    <Box>
+    <Box paddingX={1}>
       <Text dimColor>
-        Domain: {domainFilter ?? 'all'} | <Text bold>d</Text> cycle domain <Text bold>q</Text> quit
+        Domain: <Text bold>{domainFilter ?? 'all'}</Text>
       </Text>
     </Box>
   );

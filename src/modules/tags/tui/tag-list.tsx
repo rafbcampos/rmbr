@@ -7,16 +7,13 @@ interface TagListProps {
 }
 
 function TagRow({ tag, isSelected }: { readonly tag: TagWithCount; readonly isSelected: boolean }) {
-  const prefix = isSelected ? '>' : ' ';
-
   return (
     <Box>
-      <Text bold={isSelected} {...(isSelected ? { color: 'white' } : {})}>
-        {prefix} {tag.name}
+      <Text bold={isSelected} inverse={isSelected}>
+        {isSelected ? ' ▸ ' : '   '}
       </Text>
-      <Text dimColor>
-        {'  '}({tag.entityCount} entities)
-      </Text>
+      <Text bold={isSelected}>{tag.name}</Text>
+      <Text dimColor> ({tag.entityCount} entities)</Text>
     </Box>
   );
 }
@@ -24,7 +21,7 @@ function TagRow({ tag, isSelected }: { readonly tag: TagWithCount; readonly isSe
 export function TagList({ tags, selectedIndex }: TagListProps) {
   if (tags.length === 0) {
     return (
-      <Box>
+      <Box paddingX={1}>
         <Text dimColor>No tags found.</Text>
       </Box>
     );

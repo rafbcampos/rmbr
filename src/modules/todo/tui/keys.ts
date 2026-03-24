@@ -1,8 +1,9 @@
-import { TodoStatus } from '../../../core/types.ts';
+import { TodoPriority, TodoStatus } from '../../../core/types.ts';
 
 export const KEY = {
   QUIT: 'q',
   DONE: 'd',
+  EDIT: 'e',
   PRIORITY_CYCLE: 'p',
   STATUS_ALL: '1',
   STATUS_READY: '2',
@@ -19,4 +20,10 @@ export const STATUS_KEY_MAP: Record<string, TodoStatus | undefined> = {
   [KEY.STATUS_DONE]: TodoStatus.Done,
 };
 
-export const PRIORITY_ORDER = [undefined, 'critical', 'high', 'medium', 'low'] as const;
+export const PRIORITY_ORDER = [
+  undefined,
+  TodoPriority.Critical,
+  TodoPriority.High,
+  TodoPriority.Medium,
+  TodoPriority.Low,
+] as const;

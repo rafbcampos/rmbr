@@ -12,11 +12,10 @@ function processedLabel(filter: number | undefined): string {
 
 export function StatusBar({ processedFilter, sentimentFilter }: StatusBarProps) {
   return (
-    <Box>
+    <Box paddingX={1}>
       <Text dimColor>
-        Filter: {processedLabel(processedFilter)} | Sentiment: {sentimentFilter ?? 'all'} |{' '}
-        <Text bold>1-3</Text> filter <Text bold>s</Text> sentiment <Text bold>Enter</Text> process{' '}
-        <Text bold>q</Text> quit
+        Filter: <Text bold>{processedLabel(processedFilter)}</Text> | Sentiment:{' '}
+        <Text bold>{sentimentFilter ?? 'all'}</Text>
       </Text>
     </Box>
   );

@@ -2,6 +2,7 @@ import { Box, Text } from 'ink';
 import type { SlackMessage } from '../types.ts';
 import type { SlackSentiment } from '../../../core/types.ts';
 import { SlackSentiment as SlackSentimentEnum } from '../../../core/types.ts';
+import { StatusDot } from '../../../shared/tui/status-dot.tsx';
 
 interface SlackListProps {
   readonly messages: readonly SlackMessage[];
@@ -14,10 +15,6 @@ const SENTIMENT_COLORS: Record<SlackSentiment, string> = {
   [SlackSentimentEnum.Neutral]: 'gray',
 };
 
-function sentimentColor(sentiment: SlackSentiment | null): string {
-  return sentiment !== null ? SENTIMENT_COLORS[sentiment] : 'white';
-}
-
 function truncate(text: string, maxLength: number): string {
   return text.length > maxLength ? text.slice(0, maxLength) + '...' : text;
 }
@@ -29,27 +26,23 @@ function SlackRow({
   readonly msg: SlackMessage;
   readonly isSelected: boolean;
 }) {
-  const prefix = isSelected ? '>' : ' ';
-  const processedBadge = msg.processed === 1 ? 'processed' : 'unprocessed';
+  const processedColor = msg.processed === 1 ? 'cyan' : 'yellow';
   const content = truncate(msg.raw_content, 60);
-  const sentimentBadge = msg.sentiment !== null ? ` [${msg.sentiment}]` : '';
-  const linkedTodo = msg.todo_id !== null ? ` T#${msg.todo_id}` : '';
-  const linkedGoal = msg.goal_id !== null ? ` G#${msg.goal_id}` : '';
+  const sentimentColor = msg.sentiment !== null ? SENTIMENT_COLORS[msg.sentiment] : 'gray';
 
   return (
     <Box>
-      <Text bold={isSelected} {...(isSelected ? { color: 'white' } : {})}>
-        {prefix} #{msg.id}
+      <Text bold={isSelected} inverse={isSelected}>
+        {isSelected ? ' ▸ ' : '   '}
       </Text>
-      <Text color={msg.processed === 1 ? 'cyan' : 'yellow'}> [{processedBadge}]</Text>
+      <Text dimColor>#{msg.id} </Text>
+      <StatusDot color={processedColor} filled={msg.processed === 1} />
       {msg.channel !== null && <Text dimColor> #{msg.channel}</Text>}
       {msg.sender !== null && <Text dimColor> @{msg.sender}</Text>}
       <Text bold={isSelected}> {content}</Text>
-      {msg.sentiment !== null && (
-        <Text color={sentimentColor(msg.sentiment)}>{sentimentBadge}</Text>
-      )}
-      {msg.todo_id !== null && <Text color="blue">{linkedTodo}</Text>}
-      {msg.goal_id !== null && <Text color="magenta">{linkedGoal}</Text>}
+      {msg.sentiment !== null && <Text color={sentimentColor}> [{msg.sentiment}]</Text>}
+      {msg.todo_id !== null && <Text color="blue"> T#{msg.todo_id}</Text>}
+      {msg.goal_id !== null && <Text color="magenta"> G#{msg.goal_id}</Text>}
     </Box>
   );
 }
@@ -57,7 +50,7 @@ function SlackRow({
 export function SlackList({ messages, selectedIndex }: SlackListProps) {
   if (messages.length === 0) {
     return (
-      <Box>
+      <Box paddingX={1}>
         <Text dimColor>No Slack messages match the current filters.</Text>
       </Box>
     );

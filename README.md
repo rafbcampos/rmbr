@@ -16,7 +16,7 @@ CLI second brain for work — capture todos, goals, kudos, learnings, study topi
 - **Quarterly reviews** — generate goal summaries scoped to any quarter
 - **Full-text search** — search TIL entries by content
 - **Time tracking** — automatic session-based time tracking for todos with start/pause/done lifecycle
-- **Interactive TUI** — every module has an Ink-based interactive terminal UI with keyboard navigation, filtering, and inline actions
+- **Interactive TUI** — every module has an Ink-based interactive terminal UI with master-detail layout, preview pane, inline field editing, status dots, and keyboard navigation
 - **Dual-mode CLI** — interactive TUI for humans (default), plain text with `--ai` flag for AI agents; auto-detects non-TTY output
 - **LLM-assisted estimation** — expose historical time data via MCP for AI-powered task estimation
 - **AI workflow skills** — bundled slash commands for Claude Code: standup, retro, quarterly review, goal planning, Slack triage, study sessions, and performance reviews
@@ -97,7 +97,7 @@ todo restore <id>          Restore a soft-deleted todo
 todo enrich <id>           Enrich with structured data (--title, --priority, --due-date, --goal-id)
 ```
 
-**TUI keys:** `1-5` status filter, `p` priority cycle, `Enter` start, `Space` pause/resume, `d` done, `q` quit
+**TUI keys:** `↑↓` navigate, `⏎` start, `␣` pause/resume, `d` done, `e` edit, `p` priority, `1-5` status, `q` quit
 
 ### goal
 
@@ -116,7 +116,7 @@ goal star <id>             Add a STAR narrative (--situation, --task, --action, 
 goal review                Get quarterly review data (-q quarter, -y year)
 ```
 
-**TUI keys:** `1-5` status filter, `r` quarter cycle, `Enter` activate, `d` complete, `a` abandon, `q` quit
+**TUI keys:** `↑↓` navigate, `⏎` activate, `d` complete, `a` abandon, `e` edit, `r` quarter, `1-5` status, `q` quit
 
 ### kudos
 
@@ -129,7 +129,7 @@ kudos restore <id>         Restore a soft-deleted kudos entry
 kudos enrich <id>          Enrich with structured data (--person, --direction, --summary, --context, --goal-id)
 ```
 
-**TUI keys:** `1-3` direction filter (all/given/received), `q` quit
+**TUI keys:** `↑↓` navigate, `e` edit, `1-3` direction filter, `q` quit
 
 ### til
 
@@ -144,7 +144,7 @@ til restore <id>           Restore a soft-deleted TIL entry
 til enrich <id>            Enrich with structured data (--title, --content, --domain, --tags)
 ```
 
-**TUI keys:** `d` cycle domain filter, `q` quit
+**TUI keys:** `↑↓` navigate, `e` edit, `d` cycle domain, `q` quit
 
 ### study
 
@@ -163,7 +163,7 @@ study next                 Show the next queued topic
 study enrich <id>          Enrich with structured data (--title, --domain, --goal-id)
 ```
 
-**TUI keys:** `1-5` status filter, `d` domain cycle, `Enter` start, `c` complete, `p` park, `q` quit
+**TUI keys:** `↑↓` navigate, `⏎` start, `c` complete, `p` park, `e` edit, `d` domain, `1-5` status, `q` quit
 
 ### slack
 
@@ -178,7 +178,7 @@ slack delete <id>          Soft-delete a slack message
 slack restore <id>         Restore a soft-deleted slack message
 ```
 
-**TUI keys:** `1-3` processed filter (all/unprocessed/processed), `s` sentiment cycle, `Enter` mark processed, `q` quit
+**TUI keys:** `↑↓` navigate, `⏎` process, `e` edit, `s` sentiment, `1-3` filter, `q` quit
 
 ### tag
 
@@ -190,7 +190,7 @@ tag entities <tag>               Get entities with a tag (--type)
 tag show <entity_type> <id>      Show tags for an entity
 ```
 
-**TUI keys:** `Enter` drill into tag, `Esc` back, `t` cycle entity type filter, `q` quit
+**TUI keys:** `↑↓` navigate, `⏎` select, `Esc` back, `t` cycle type, `q` quit
 
 ### search
 

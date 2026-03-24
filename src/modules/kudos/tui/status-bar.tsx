@@ -6,9 +6,9 @@ interface StatusBarProps {
 
 export function StatusBar({ directionFilter }: StatusBarProps) {
   return (
-    <Box>
+    <Box paddingX={1}>
       <Text dimColor>
-        Filter: {directionFilter ?? 'all'} | <Text bold>1-3</Text> filter <Text bold>q</Text> quit
+        Direction: <Text bold>{directionFilter ?? 'all'}</Text>
       </Text>
     </Box>
   );

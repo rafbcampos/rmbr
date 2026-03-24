@@ -5,6 +5,7 @@ export const KEY = {
   QUARTER_CYCLE: 'r',
   COMPLETE: 'd',
   ABANDON: 'a',
+  EDIT: 'e',
   STATUS_ALL: '1',
   STATUS_DRAFT: '2',
   STATUS_ACTIVE: '3',

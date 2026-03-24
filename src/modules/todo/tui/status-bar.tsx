@@ -17,18 +17,17 @@ export function StatusBar({ db, activeEntry, statusFilter, priorityFilter }: Sta
   return (
     <Box flexDirection="column">
       {activeEntry !== null && (
-        <Box>
+        <Box borderStyle="round" borderColor="green" paddingX={1} marginBottom={0}>
           <Text color="green" bold>
-            Active: #{activeEntry.todo_id}
+            ▶ #{activeEntry.todo_id}
           </Text>
-          <Text color="yellow"> [{formatDuration(elapsed)}]</Text>
+          <Text color="yellow"> ⏱ {formatDuration(elapsed)}</Text>
         </Box>
       )}
-      <Box>
+      <Box paddingX={1}>
         <Text dimColor>
-          Filter: {statusFilter ?? 'all'} | Priority: {priorityFilter ?? 'all'} |{' '}
-          <Text bold>1-5</Text> status <Text bold>p</Text> priority <Text bold>Enter</Text> start{' '}
-          <Text bold>Space</Text> pause <Text bold>d</Text> done <Text bold>q</Text> quit
+          Status: <Text bold>{statusFilter ?? 'all'}</Text> | Priority:{' '}
+          <Text bold>{priorityFilter ?? 'all'}</Text>
         </Text>
       </Box>
     </Box>

@@ -1,7 +1,14 @@
-import type { BaseEntity } from '../../core/types.ts';
+import type { BaseEntity, TodoPriority } from '../../core/types.ts';
 import { TodoStatus } from '../../core/types.ts';
+import { TodoPriority as TodoPriorityEnum } from '../../core/types.ts';
 import { parseEnrichmentStatus } from '../../shared/type-guards.ts';
 import { ValidationError } from '../../core/errors.ts';
+
+const TODO_PRIORITIES = new Set<string>(Object.values(TodoPriorityEnum));
+
+export function isTodoPriority(value: string): value is TodoPriority {
+  return TODO_PRIORITIES.has(value);
+}
 
 export interface Todo extends BaseEntity {
   readonly title: string | null;

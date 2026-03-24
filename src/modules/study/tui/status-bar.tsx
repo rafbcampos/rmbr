@@ -11,17 +11,16 @@ export function StatusBar({ nextTopic, statusFilter, domainFilter }: StatusBarPr
   return (
     <Box flexDirection="column">
       {nextTopic !== null && (
-        <Box>
+        <Box borderStyle="round" borderColor="green" paddingX={1} marginBottom={0}>
           <Text color="green" bold>
             Next: #{nextTopic.id} {nextTopic.title ?? nextTopic.raw_input}
           </Text>
         </Box>
       )}
-      <Box>
+      <Box paddingX={1}>
         <Text dimColor>
-          Filter: {statusFilter ?? 'all'} | Domain: {domainFilter ?? 'all'} | <Text bold>1-5</Text>{' '}
-          status <Text bold>d</Text> domain <Text bold>Enter</Text> start <Text bold>c</Text>{' '}
-          complete <Text bold>p</Text> park <Text bold>q</Text> quit
+          Status: <Text bold>{statusFilter ?? 'all'}</Text> | Domain:{' '}
+          <Text bold>{domainFilter ?? 'all'}</Text>
         </Text>
       </Box>
     </Box>

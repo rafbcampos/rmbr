@@ -3,6 +3,7 @@ import { SlackSentiment } from '../../../core/types.ts';
 export const KEY = {
   QUIT: 'q',
   SENTIMENT_CYCLE: 's',
+  EDIT: 'e',
   FILTER_ALL: '1',
   UNPROCESSED: '2',
   PROCESSED: '3',

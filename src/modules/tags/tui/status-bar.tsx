@@ -10,20 +10,16 @@ interface StatusBarProps {
 export function StatusBar({ view, tagName, entityTypeFilter }: StatusBarProps) {
   if (view === TagView.List) {
     return (
-      <Box>
-        <Text dimColor>
-          Select a tag | <Text bold>Enter</Text> select {''}
-          <Text bold>q</Text> quit
-        </Text>
+      <Box paddingX={1}>
+        <Text dimColor>Select a tag to view its entities</Text>
       </Box>
     );
   }
 
   return (
-    <Box>
+    <Box paddingX={1}>
       <Text dimColor>
-        Tag: {tagName} | Type: {entityTypeFilter ?? 'all'} | <Text bold>t</Text> cycle type {''}
-        <Text bold>Esc</Text> back <Text bold>q</Text> quit
+        Tag: <Text bold>{tagName}</Text> | Type: <Text bold>{entityTypeFilter ?? 'all'}</Text>
       </Text>
     </Box>
   );

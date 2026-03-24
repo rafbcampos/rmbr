@@ -9,6 +9,9 @@ import { TagList } from './tag-list.tsx';
 import { EntityList } from './entity-list.tsx';
 import { TagView } from './types.ts';
 import { KEY } from './keys.ts';
+import { BorderedPanel } from '../../../shared/tui/bordered-panel.tsx';
+import { KeyHintBar } from '../../../shared/tui/key-hint-bar.tsx';
+import type { KeyHint } from '../../../shared/tui/types.ts';
 
 const ENTITY_TYPE_ORDER: ReadonlyArray<EntityTypeValue | undefined> = [
   undefined,
@@ -18,6 +21,19 @@ const ENTITY_TYPE_ORDER: ReadonlyArray<EntityTypeValue | undefined> = [
   EntityType.Til,
   EntityType.Study,
   EntityType.Slack,
+];
+
+const TAG_LIST_HINTS: readonly KeyHint[] = [
+  { key: '↑↓', action: 'nav' },
+  { key: '⏎', action: 'select' },
+  { key: 'q', action: 'quit' },
+];
+
+const ENTITY_LIST_HINTS: readonly KeyHint[] = [
+  { key: '↑↓', action: 'nav' },
+  { key: 't', action: 'type' },
+  { key: 'Esc', action: 'back' },
+  { key: 'q', action: 'quit' },
 ];
 
 interface AppProps {
@@ -105,14 +121,17 @@ function App({ db }: AppProps) {
   return (
     <Box flexDirection="column">
       <StatusBar view={view} tagName={selectedTagName} entityTypeFilter={entityTypeFilter} />
-      {view === TagView.List && <TagList tags={tags} selectedIndex={selectedTagIndex} />}
-      {view === TagView.Entities && selectedTagName !== null && (
-        <EntityList
-          tagName={selectedTagName}
-          entities={entities}
-          selectedIndex={selectedEntityIndex}
-        />
-      )}
+      <BorderedPanel title={view === TagView.List ? 'Tags' : `Tag: ${selectedTagName}`}>
+        {view === TagView.List && <TagList tags={tags} selectedIndex={selectedTagIndex} />}
+        {view === TagView.Entities && selectedTagName !== null && (
+          <EntityList
+            tagName={selectedTagName}
+            entities={entities}
+            selectedIndex={selectedEntityIndex}
+          />
+        )}
+      </BorderedPanel>
+      <KeyHintBar hints={view === TagView.List ? TAG_LIST_HINTS : ENTITY_LIST_HINTS} />
     </Box>
   );
 }

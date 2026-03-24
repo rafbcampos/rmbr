@@ -58,6 +58,14 @@ export const Quarter = {
 } as const;
 export type Quarter = (typeof Quarter)[keyof typeof Quarter];
 
+export const TodoPriority = {
+  Critical: 'critical',
+  High: 'high',
+  Medium: 'medium',
+  Low: 'low',
+} as const;
+export type TodoPriority = (typeof TodoPriority)[keyof typeof TodoPriority];
+
 export const KudosDirection = {
   Given: 'given',
   Received: 'received',

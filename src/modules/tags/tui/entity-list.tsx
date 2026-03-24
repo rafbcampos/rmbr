@@ -1,6 +1,7 @@
 import { Box, Text } from 'ink';
 import type { EntityTag } from '../types.ts';
 import { ENTITY_TYPE_COLORS } from './keys.ts';
+import { StatusDot } from '../../../shared/tui/status-dot.tsx';
 
 interface EntityListProps {
   readonly tagName: string;
@@ -15,15 +16,15 @@ function EntityRow({
   readonly entity: EntityTag;
   readonly isSelected: boolean;
 }) {
-  const prefix = isSelected ? '>' : ' ';
   const color = ENTITY_TYPE_COLORS[entity.entity_type];
 
   return (
     <Box>
-      <Text bold={isSelected} {...(isSelected ? { color: 'white' } : {})}>
-        {prefix}
+      <Text bold={isSelected} inverse={isSelected}>
+        {isSelected ? ' ▸ ' : '   '}
       </Text>
-      <Text color={color}> [{entity.entity_type}]</Text>
+      <StatusDot color={color} filled={true} />
+      <Text color={color}> {entity.entity_type.padEnd(6)}</Text>
       <Text bold={isSelected}> #{entity.entity_id}</Text>
     </Box>
   );
@@ -32,22 +33,14 @@ function EntityRow({
 export function EntityList({ tagName, entities, selectedIndex }: EntityListProps) {
   if (entities.length === 0) {
     return (
-      <Box flexDirection="column">
-        <Box>
-          <Text bold>Tag: {tagName}</Text>
-        </Box>
-        <Box>
-          <Text dimColor>No entities found.</Text>
-        </Box>
+      <Box paddingX={1}>
+        <Text dimColor>No entities found for tag: {tagName}</Text>
       </Box>
     );
   }
 
   return (
     <Box flexDirection="column">
-      <Box>
-        <Text bold>Tag: {tagName}</Text>
-      </Box>
       {entities.map((entity, idx) => (
         <EntityRow key={entity.id} entity={entity} isSelected={idx === selectedIndex} />
       ))}

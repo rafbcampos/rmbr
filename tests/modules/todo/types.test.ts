@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'bun:test';
-import { TodoStatus, EnrichmentStatus } from '../../../src/core/types.ts';
+import { TodoStatus, TodoPriority, EnrichmentStatus } from '../../../src/core/types.ts';
 import { ValidationError } from '../../../src/core/errors.ts';
-import { isTodoStatus, parseTodoStatus, todoRowToEntity } from '../../../src/modules/todo/types.ts';
+import {
+  isTodoStatus,
+  isTodoPriority,
+  parseTodoStatus,
+  todoRowToEntity,
+} from '../../../src/modules/todo/types.ts';
 import type { TodoRow } from '../../../src/modules/todo/types.ts';
 
 function makeTodoRow(overrides: Partial<TodoRow> = {}): TodoRow {
@@ -36,6 +41,28 @@ describe('isTodoStatus', () => {
     expect(isTodoStatus('')).toBe(false);
     expect(isTodoStatus('SKETCH')).toBe(false);
     expect(isTodoStatus('Draft')).toBe(false);
+  });
+});
+
+describe('isTodoPriority', () => {
+  it('returns true for each valid TodoPriority value', () => {
+    expect(isTodoPriority(TodoPriority.Critical)).toBe(true);
+    expect(isTodoPriority(TodoPriority.High)).toBe(true);
+    expect(isTodoPriority(TodoPriority.Medium)).toBe(true);
+    expect(isTodoPriority(TodoPriority.Low)).toBe(true);
+  });
+
+  it('returns false for invalid priority strings', () => {
+    expect(isTodoPriority('invalid')).toBe(false);
+    expect(isTodoPriority('')).toBe(false);
+    expect(isTodoPriority('HIGH')).toBe(false);
+    expect(isTodoPriority('Critical')).toBe(false);
+  });
+
+  it('covers all TodoPriority values', () => {
+    for (const value of Object.values(TodoPriority)) {
+      expect(isTodoPriority(value)).toBe(true);
+    }
   });
 });
 
