@@ -5,6 +5,7 @@ import {
   formatDate,
   getCurrentQuarter,
   getCurrentYear,
+  formatDuration,
 } from '../../src/core/date-utils.ts';
 
 describe('date-utils', () => {
@@ -63,6 +64,44 @@ describe('date-utils', () => {
   describe('getCurrentYear', () => {
     it('should return current year', () => {
       expect(getCurrentYear()).toBe(new Date().getFullYear());
+    });
+  });
+
+  describe('formatDuration', () => {
+    it('formats 0 seconds', () => {
+      expect(formatDuration(0)).toBe('0s');
+    });
+
+    it('formats seconds only', () => {
+      expect(formatDuration(45)).toBe('45s');
+    });
+
+    it('formats minutes and seconds', () => {
+      expect(formatDuration(312)).toBe('5m 12s');
+    });
+
+    it('formats exact minutes', () => {
+      expect(formatDuration(300)).toBe('5m');
+    });
+
+    it('formats hours and minutes', () => {
+      expect(formatDuration(9240)).toBe('2h 34m');
+    });
+
+    it('formats exact hours', () => {
+      expect(formatDuration(3600)).toBe('1h');
+    });
+
+    it('accumulates hours beyond 24', () => {
+      expect(formatDuration(90061)).toBe('25h 1m');
+    });
+
+    it('clamps negative values to 0s', () => {
+      expect(formatDuration(-5)).toBe('0s');
+    });
+
+    it('floors fractional seconds', () => {
+      expect(formatDuration(45.9)).toBe('45s');
     });
   });
 });

@@ -1,6 +1,6 @@
 import type { DrizzleDatabase } from '../../src/core/drizzle.ts';
 import { TodoStatus, GoalStatus, StudyStatus } from '../../src/core/types.ts';
-import { todos } from '../../src/modules/todo/drizzle-schema.ts';
+import { todos, todoTimeEntries } from '../../src/modules/todo/drizzle-schema.ts';
 import { kudos } from '../../src/modules/kudos/drizzle-schema.ts';
 import { goals } from '../../src/modules/goals/drizzle-schema.ts';
 import { til } from '../../src/modules/til/drizzle-schema.ts';
@@ -139,6 +139,25 @@ export function insertStudyTopic(db: DrizzleDatabase, fixture: StudyTopicFixture
       goal_id: fixture.goal_id ?? null,
     })
     .returning({ id: studyTopics.id })
+    .get();
+  return result.id;
+}
+
+export interface TimeEntryFixture {
+  todo_id: number;
+  started_at?: string;
+  stopped_at?: string | null;
+}
+
+export function insertTimeEntry(db: DrizzleDatabase, fixture: TimeEntryFixture): number {
+  const result = db
+    .insert(todoTimeEntries)
+    .values({
+      todo_id: fixture.todo_id,
+      ...(fixture.started_at !== undefined ? { started_at: fixture.started_at } : {}),
+      ...(fixture.stopped_at !== undefined ? { stopped_at: fixture.stopped_at } : {}),
+    })
+    .returning({ id: todoTimeEntries.id })
     .get();
   return result.id;
 }

@@ -7,9 +7,10 @@ import { enrichEntity, toUpdateRecord } from '../../shared/enrichment.ts';
 import { listWithPagination } from '../../shared/list-with-pagination.ts';
 import { softDelete, restore, notDeletedCondition } from '../../shared/soft-delete.ts';
 import { handleTransition } from '../../shared/transition.ts';
-import type { Todo } from './types.ts';
+import type { Todo, TodoWithTime } from './types.ts';
 import { todoRowToEntity } from './types.ts';
 import { todos } from './drizzle-schema.ts';
+import { TimeEntryService } from './time-entry-service.ts';
 
 const VALID_TRANSITIONS: Record<TodoStatus, readonly TodoStatus[]> = {
   [TodoStatus.Sketch]: [TodoStatus.Ready, TodoStatus.Cancelled],
@@ -98,7 +99,35 @@ export const TodoService = {
       todo.status,
       newStatus,
     );
+
+    if (newStatus === TodoStatus.InProgress) {
+      const active = TimeEntryService.getActive(db, id);
+      if (!active) {
+        TimeEntryService.start(db, id);
+      }
+    } else if (
+      newStatus === TodoStatus.Paused ||
+      newStatus === TodoStatus.Done ||
+      newStatus === TodoStatus.Cancelled
+    ) {
+      const active = TimeEntryService.getActive(db, id);
+      if (active) {
+        TimeEntryService.stop(db, id);
+      }
+    }
+
     return TodoService.getById(db, id);
+  },
+
+  getByIdWithTime(db: DrizzleDatabase, id: number): TodoWithTime {
+    const todo = TodoService.getById(db, id);
+    const totalElapsed = TimeEntryService.totalElapsed(db, id);
+    const activeEntry = TimeEntryService.getActive(db, id);
+    return {
+      ...todo,
+      total_elapsed_seconds: totalElapsed,
+      active_entry_id: activeEntry ? activeEntry.id : null,
+    };
   },
 
   enrich(db: DrizzleDatabase, id: number, fields: EnrichFields): Todo {

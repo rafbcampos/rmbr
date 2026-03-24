@@ -1,6 +1,18 @@
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
+export const todoTimeEntries = sqliteTable('todo_time_entries', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  todo_id: integer('todo_id').notNull(),
+  started_at: text('started_at')
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  stopped_at: text('stopped_at'),
+  created_at: text('created_at')
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 export const todos = sqliteTable('todos', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   raw_input: text('raw_input').notNull(),

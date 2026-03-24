@@ -60,3 +60,20 @@ export function formatDate(date: string | Date): string {
 export function nowISO(): string {
   return new Date().toISOString();
 }
+
+export function formatDuration(seconds: number): string {
+  const clamped = Math.max(0, Math.floor(seconds));
+  if (clamped === 0) return '0s';
+
+  const hours = Math.floor(clamped / 3600);
+  const minutes = Math.floor((clamped % 3600) / 60);
+  const secs = clamped % 60;
+
+  if (hours > 0) {
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  }
+  if (minutes > 0) {
+    return secs > 0 ? `${minutes}m ${secs}s` : `${minutes}m`;
+  }
+  return `${secs}s`;
+}

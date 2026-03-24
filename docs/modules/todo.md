@@ -1,6 +1,6 @@
 # Todos
 
-Todos are actionable tasks. They go through a lifecycle from sketch to completion, with enrichment adding structure to raw input.
+Todos are actionable tasks with built-in time tracking. They go through a lifecycle from sketch to completion, with automatic timer management on status transitions.
 
 ## Entity Fields
 
@@ -17,16 +17,33 @@ Todos are actionable tasks. They go through a lifecycle from sketch to completio
 | created_at        | `string`           | ISO timestamp                       |
 | updated_at        | `string`           | ISO timestamp                       |
 
-## Status Transitions
+## Time Tracking
 
-Todos follow a defined lifecycle through these statuses:
+Todos have session-based time tracking stored in the `todo_time_entries` table. Each time entry records a work session with `started_at` and `stopped_at` timestamps.
+
+**How it works:**
+
+- Transitioning to `in_progress` starts a timer (creates a time entry)
+- Transitioning to `paused`, `done`, or `cancelled` stops the active timer
+- Closing the terminal leaves the timer running (it's a DB timestamp, not a process)
+- Total elapsed time is computed as the sum of all sessions
+- Multiple todos can have running timers simultaneously
+
+**Interactive TUI:** `rmbr todo list` opens an Ink-based interactive terminal UI with:
+
+- Arrow keys to navigate, `Enter` to start, `Space` to pause/resume, `d` for done, `q` to exit
+- Status filtering (keys `1-5`) and priority cycling (key `p`)
+- Live elapsed time counter for the active task
+- Use `--ai` flag for plain text output (for AI agents or scripts)
+
+## Status Transitions
 
 ```
 sketch --> ready --> in_progress --> done
-                        |       \-> cancelled
-                        v
-                      paused --> in_progress
-                        \------> cancelled
+                       |       \-> cancelled
+                       v
+                     paused --> in_progress
+                       \------> cancelled
 ```
 
 | From          | To                            |
@@ -40,29 +57,28 @@ sketch --> ready --> in_progress --> done
 
 ## CLI Commands
 
-For full syntax details, see the [CLI Reference](/guide/cli-usage).
-
-| Command             | Description                                                                                                  |
-| ------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `rmbr todo add`     | Create a new todo from raw input                                                                             |
-| `rmbr todo list`    | List todos, optionally filter by status (`--include-deleted`, `--overdue`, `--due-today`, `--due-this-week`) |
-| `rmbr todo show`    | Show a single todo by ID                                                                                     |
-| `rmbr todo start`   | Transition a todo to `in_progress`                                                                           |
-| `rmbr todo pause`   | Pause an in-progress todo                                                                                    |
-| `rmbr todo done`    | Mark a todo as done                                                                                          |
-| `rmbr todo cancel`  | Cancel a todo                                                                                                |
-| `rmbr todo delete`  | Soft-delete a todo (hidden from lists by default)                                                            |
-| `rmbr todo restore` | Restore a soft-deleted todo                                                                                  |
-| `rmbr todo enrich`  | Enrich a todo with structured fields                                                                         |
+| Command             | Description                                                                              |
+| ------------------- | ---------------------------------------------------------------------------------------- |
+| `rmbr todo add`     | Create a new todo from raw input                                                         |
+| `rmbr todo list`    | Interactive TUI (default) or plain text (`--ai`, `--status`, `--overdue`, `--due-today`) |
+| `rmbr todo show`    | Show a todo with time tracking sessions and total elapsed time                           |
+| `rmbr todo start`   | Start working (transitions to `in_progress`, starts timer)                               |
+| `rmbr todo pause`   | Pause (auto-detects active timer if no id given)                                         |
+| `rmbr todo done`    | Mark as done (shows total time spent; auto-detects active timer)                         |
+| `rmbr todo cancel`  | Cancel a todo                                                                            |
+| `rmbr todo delete`  | Soft-delete a todo                                                                       |
+| `rmbr todo restore` | Restore a soft-deleted todo                                                              |
+| `rmbr todo enrich`  | Enrich a todo with structured fields                                                     |
 
 ## MCP Tools
 
-| Tool                   | Description                                                                                                 |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `rmbr_todo_create`     | Create a new todo; accepts optional enrichment fields                                                       |
-| `rmbr_todo_list`       | List todos with optional status, enrichment, and due date filters (`overdue`, `due_today`, `due_this_week`) |
-| `rmbr_todo_get`        | Get a single todo by ID                                                                                     |
-| `rmbr_todo_transition` | Transition a todo to a new status                                                                           |
-| `rmbr_todo_delete`     | Soft-delete a todo                                                                                          |
-| `rmbr_todo_restore`    | Restore a soft-deleted todo                                                                                 |
-| `rmbr_todo_enrich`     | Enrich a raw todo with title, priority, due date, goal                                                      |
+| Tool                   | Description                                                              |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `rmbr_todo_create`     | Create a new todo; accepts optional enrichment fields                    |
+| `rmbr_todo_list`       | List todos with filters; includes `total_elapsed_seconds` per todo       |
+| `rmbr_todo_get`        | Get a todo with session history and total elapsed time                   |
+| `rmbr_todo_transition` | Transition a todo (auto-manages timers on start/pause/done/cancel)       |
+| `rmbr_todo_estimate`   | Returns completed todos with actual duration for LLM-assisted estimation |
+| `rmbr_todo_delete`     | Soft-delete a todo                                                       |
+| `rmbr_todo_restore`    | Restore a soft-deleted todo                                              |
+| `rmbr_todo_enrich`     | Enrich a raw todo with title, priority, due date, goal                   |

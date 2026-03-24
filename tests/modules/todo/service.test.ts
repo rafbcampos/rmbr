@@ -6,7 +6,8 @@ import { goalsMigrations as goalMigrations } from '../../../src/modules/goals/sc
 import { TodoService } from '../../../src/modules/todo/service.ts';
 import { NotFoundError, InvalidTransitionError } from '../../../src/core/errors.ts';
 import { TodoStatus, EnrichmentStatus } from '../../../src/core/types.ts';
-import { insertGoal, insertTodo } from '../../helpers/fixtures.ts';
+import { insertGoal, insertTodo, insertTimeEntry } from '../../helpers/fixtures.ts';
+import { TimeEntryService } from '../../../src/modules/todo/time-entry-service.ts';
 
 describe('TodoService', () => {
   let db: DrizzleDatabase;
@@ -270,6 +271,89 @@ describe('TodoService', () => {
 
     it('throws NotFoundError when restoring non-existent todo', () => {
       expect(() => TodoService.restoreEntity(db, 999)).toThrow(NotFoundError);
+    });
+  });
+
+  describe('time entry integration', () => {
+    it('transition to in_progress creates a time entry', () => {
+      const id = insertTodo(db, { raw_input: 'Test', status: TodoStatus.Ready });
+      TodoService.transition(db, id, TodoStatus.InProgress);
+
+      const active = TimeEntryService.getActive(db, id);
+      expect(active).not.toBeNull();
+      expect(active!.stopped_at).toBeNull();
+    });
+
+    it('transition to paused stops the active time entry', () => {
+      const id = insertTodo(db, { raw_input: 'Test', status: TodoStatus.Ready });
+      TodoService.transition(db, id, TodoStatus.InProgress);
+      TodoService.transition(db, id, TodoStatus.Paused);
+
+      const active = TimeEntryService.getActive(db, id);
+      expect(active).toBeNull();
+
+      const entries = TimeEntryService.listForTodo(db, id);
+      expect(entries).toHaveLength(1);
+      expect(entries[0]!.stopped_at).toBeTruthy();
+    });
+
+    it('transition to done stops the active time entry', () => {
+      const id = insertTodo(db, { raw_input: 'Test', status: TodoStatus.Ready });
+      TodoService.transition(db, id, TodoStatus.InProgress);
+      TodoService.transition(db, id, TodoStatus.Done);
+
+      expect(TimeEntryService.getActive(db, id)).toBeNull();
+    });
+
+    it('transition to cancelled stops the active time entry', () => {
+      const id = insertTodo(db, { raw_input: 'Test', status: TodoStatus.Ready });
+      TodoService.transition(db, id, TodoStatus.InProgress);
+      TodoService.transition(db, id, TodoStatus.Cancelled);
+
+      expect(TimeEntryService.getActive(db, id)).toBeNull();
+    });
+
+    it('resume from paused creates a new time entry', () => {
+      const id = insertTodo(db, { raw_input: 'Test', status: TodoStatus.Ready });
+      TodoService.transition(db, id, TodoStatus.InProgress);
+      TodoService.transition(db, id, TodoStatus.Paused);
+      TodoService.transition(db, id, TodoStatus.InProgress);
+
+      const entries = TimeEntryService.listForTodo(db, id);
+      expect(entries).toHaveLength(2);
+      const active = entries.find(e => e.stopped_at === null);
+      expect(active).toBeTruthy();
+    });
+  });
+
+  describe('getByIdWithTime', () => {
+    it('returns todo with time data', () => {
+      const id = insertTodo(db, { raw_input: 'Test', status: TodoStatus.InProgress });
+      insertTimeEntry(db, {
+        todo_id: id,
+        started_at: '2026-03-20 09:00:00',
+        stopped_at: '2026-03-20 10:00:00',
+      });
+
+      const result = TodoService.getByIdWithTime(db, id);
+      expect(result.id).toBe(id);
+      expect(result.total_elapsed_seconds).toBe(3600);
+      expect(result.active_entry_id).toBeNull();
+    });
+
+    it('returns active_entry_id when timer is running', () => {
+      const id = insertTodo(db, { raw_input: 'Test', status: TodoStatus.Ready });
+      TodoService.transition(db, id, TodoStatus.InProgress);
+
+      const result = TodoService.getByIdWithTime(db, id);
+      expect(result.active_entry_id).not.toBeNull();
+    });
+
+    it('returns 0 elapsed when no entries', () => {
+      const id = insertTodo(db, { raw_input: 'Test' });
+      const result = TodoService.getByIdWithTime(db, id);
+      expect(result.total_elapsed_seconds).toBe(0);
+      expect(result.active_entry_id).toBeNull();
     });
   });
 

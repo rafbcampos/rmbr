@@ -15,7 +15,10 @@ CLI second brain for work — capture todos, goals, kudos, learnings, study topi
 - **STAR narratives** — attach Situation/Task/Action/Result stories to goals for performance reviews
 - **Quarterly reviews** — generate goal summaries scoped to any quarter
 - **Full-text search** — search TIL entries by content
-- **AI workflow skills** — bundled slash commands for Claude Code: weekly standup, quarterly review, goal planning, Slack triage, study sessions, and performance reviews
+- **Time tracking** — automatic session-based time tracking for todos with start/pause/done lifecycle
+- **Interactive TUI** — `rmbr todo list` opens an Ink-based interactive terminal UI with filtering and live timer
+- **LLM-assisted estimation** — expose historical time data via MCP for AI-powered task estimation
+- **AI workflow skills** — bundled slash commands for Claude Code: standup, retro, quarterly review, goal planning, Slack triage, study sessions, and performance reviews
 - **Skills CLI** — `rmbr skill install` to add all skills to Claude Code as `/rmbr-*` slash commands
 - **Local SQLite storage** — all data lives in `~/.rmbr/rmbr.db`
 
@@ -80,11 +83,11 @@ Claude Desktop configuration (`claude_desktop_config.json`):
 
 ```
 todo add <input>           Create a new todo from raw input
-todo list                  List todos (--status, --page, --page-size, --include-deleted, --overdue, --due-today, --due-this-week)
-todo show <id>             Show a single todo
-todo start <id>            Transition to in_progress
-todo pause <id>            Transition to paused
-todo done <id>             Mark as done
+todo list                  Interactive TUI (default) or plain text (--ai, --status, --overdue, --due-today, --due-this-week)
+todo show <id>             Show a todo with time tracking sessions and total elapsed time
+todo start <id>            Start working (transitions to in_progress, starts timer)
+todo pause [id]            Pause (auto-detects active timer if no id given)
+todo done [id]             Mark as done (shows total time spent)
 todo cancel <id>           Cancel a todo
 todo delete <id>           Soft-delete a todo
 todo restore <id>          Restore a soft-deleted todo
@@ -199,7 +202,8 @@ This creates `/rmbr-*` slash commands in Claude Code:
 
 | Skill                | Description                                                |
 | -------------------- | ---------------------------------------------------------- |
-| `weekly-standup`     | Synthesize a weekly update from todos, goals, kudos, TILs  |
+| `standup`            | Generate a standup with time tracking data (any period)    |
+| `retro`              | Retrospective report with time analysis (any period)       |
 | `quarterly-review`   | Generate a quarterly goal review with STAR narratives      |
 | `goal-plan`          | Conversational goal planning with KPI suggestions          |
 | `slack-process`      | Triage Slack messages: sentiment, todos, kudos, goal links |
@@ -217,7 +221,9 @@ Additional cross-cutting MCP tools:
 - `rmbr_search` — search across all modules in one query
 - `rmbr_goal_related` — get all entities linked to a goal
 - `rmbr_<module>_delete` / `rmbr_<module>_restore` — soft-delete and restore entities
-- `rmbr_todo_list` accepts `overdue`, `due_today`, `due_this_week` boolean params for due date filtering
+- `rmbr_todo_list` accepts `overdue`, `due_today`, `due_this_week` boolean params for due date filtering; includes `total_elapsed_seconds` per todo
+- `rmbr_todo_get` — includes time entry sessions and total elapsed time
+- `rmbr_todo_estimate` — returns completed todos with actual duration for LLM-assisted estimation
 
 ## Development
 

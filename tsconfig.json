@@ -19,9 +19,11 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noPropertyAccessFromIndexSignature": false,
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
     "outDir": "dist",
     "rootDir": "."
   },
-  "include": ["src/**/*.ts", "bin/**/*.ts", "tests/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "bin/**/*.ts", "tests/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
