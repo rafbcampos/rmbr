@@ -16,7 +16,8 @@ CLI second brain for work — capture todos, goals, kudos, learnings, study topi
 - **Quarterly reviews** — generate goal summaries scoped to any quarter
 - **Full-text search** — search TIL entries by content
 - **Time tracking** — automatic session-based time tracking for todos with start/pause/done lifecycle
-- **Interactive TUI** — `rmbr todo list` opens an Ink-based interactive terminal UI with filtering and live timer
+- **Interactive TUI** — every module has an Ink-based interactive terminal UI with keyboard navigation, filtering, and inline actions
+- **Dual-mode CLI** — interactive TUI for humans (default), plain text with `--ai` flag for AI agents; auto-detects non-TTY output
 - **LLM-assisted estimation** — expose historical time data via MCP for AI-powered task estimation
 - **AI workflow skills** — bundled slash commands for Claude Code: standup, retro, quarterly review, goal planning, Slack triage, study sessions, and performance reviews
 - **Skills CLI** — `rmbr skill install` to add all skills to Claude Code as `/rmbr-*` slash commands
@@ -79,6 +80,8 @@ Claude Desktop configuration (`claude_desktop_config.json`):
 
 ## CLI Commands
 
+All `list` commands open an interactive TUI by default. Use `--ai` for plain text output suitable for scripts and AI agents. Filters (e.g. `--status`, `--domain`) also produce plain text output.
+
 ### todo
 
 ```
@@ -94,11 +97,13 @@ todo restore <id>          Restore a soft-deleted todo
 todo enrich <id>           Enrich with structured data (--title, --priority, --due-date, --goal-id)
 ```
 
+**TUI keys:** `1-5` status filter, `p` priority cycle, `Enter` start, `Space` pause/resume, `d` done, `q` quit
+
 ### goal
 
 ```
 goal add <input>           Create a new goal
-goal list                  List goals (-s status, -q quarter, -y year, -p page, --page-size, --include-deleted)
+goal list                  Interactive TUI (default) or plain text (--ai, -s status, -q quarter, -y year)
 goal show <id>             Show a single goal
 goal activate <id>         Transition to active
 goal complete <id>         Transition to completed
@@ -111,22 +116,26 @@ goal star <id>             Add a STAR narrative (--situation, --task, --action, 
 goal review                Get quarterly review data (-q quarter, -y year)
 ```
 
+**TUI keys:** `1-5` status filter, `r` quarter cycle, `Enter` activate, `d` complete, `a` abandon, `q` quit
+
 ### kudos
 
 ```
 kudos add <input>          Record a kudos entry from raw input
-kudos list                 List kudos (--direction, --page, --include-deleted)
+kudos list                 Interactive TUI (default) or plain text (--ai, --direction, --include-deleted)
 kudos show <id>            Show a single kudos
 kudos delete <id>          Soft-delete a kudos entry
 kudos restore <id>         Restore a soft-deleted kudos entry
 kudos enrich <id>          Enrich with structured data (--person, --direction, --summary, --context, --goal-id)
 ```
 
+**TUI keys:** `1-3` direction filter (all/given/received), `q` quit
+
 ### til
 
 ```
 til add <input>            Record a TIL entry
-til list                   List TILs (--domain, --page, --include-deleted)
+til list                   Interactive TUI (default) or plain text (--ai, --domain, --include-deleted)
 til show <id>              Show a single TIL
 til search <query>         Full-text search across TILs
 til domains                List all TIL domains
@@ -135,11 +144,13 @@ til restore <id>           Restore a soft-deleted TIL entry
 til enrich <id>            Enrich with structured data (--title, --content, --domain, --tags)
 ```
 
+**TUI keys:** `d` cycle domain filter, `q` quit
+
 ### study
 
 ```
 study add <input>          Add a study topic
-study list                 List study topics (--status, --domain, --page, --page-size, --include-deleted)
+study list                 Interactive TUI (default) or plain text (--ai, --status, --domain, --include-deleted)
 study show <id>            Show a single study topic
 study start <id>           Transition to in_progress
 study done <id>            Mark as completed
@@ -152,11 +163,13 @@ study next                 Show the next queued topic
 study enrich <id>          Enrich with structured data (--title, --domain, --goal-id)
 ```
 
+**TUI keys:** `1-5` status filter, `d` domain cycle, `Enter` start, `c` complete, `p` park, `q` quit
+
 ### slack
 
 ```
 slack ingest <content>     Capture a Slack message (--channel, --sender, --message-ts)
-slack list                 List captured messages (--channel, --processed, --sentiment, --page, --include-deleted)
+slack list                 Interactive TUI (default) or plain text (--ai, --channel, --processed, --sentiment)
 slack sentiment <id> <s>   Set sentiment (positive, negative, neutral)
 slack link-todo <id> <tid> Link a message to a todo
 slack link-goal <id> <gid> Link a message to a goal
@@ -165,15 +178,19 @@ slack delete <id>          Soft-delete a slack message
 slack restore <id>         Restore a soft-deleted slack message
 ```
 
+**TUI keys:** `1-3` processed filter (all/unprocessed/processed), `s` sentiment cycle, `Enter` mark processed, `q` quit
+
 ### tag
 
 ```
 tag add <tag> <type> <id>        Tag an entity (types: todo, kudos, goal, til, study, slack)
 tag remove <tag> <type> <id>     Remove a tag from an entity
-tag list                         List all tags
+tag list                         Interactive TUI (default) or plain text (--ai)
 tag entities <tag>               Get entities with a tag (--type)
 tag show <entity_type> <id>      Show tags for an entity
 ```
+
+**TUI keys:** `Enter` drill into tag, `Esc` back, `t` cycle entity type filter, `q` quit
 
 ### search
 

@@ -33,17 +33,27 @@ The junction table links tags to entities across all modules.
 | entity_id   | `number`     | ID of the tagged entity    |
 | created_at  | `string`     | ISO timestamp              |
 
+## Interactive TUI
+
+`rmbr tag list` opens an interactive two-panel terminal UI:
+
+- **Tag list panel:** Arrow keys to navigate tags, `Enter` to drill into a tag's entities
+- **Entity list panel:** Arrow keys to navigate entities, `t` to cycle entity type filter, `Esc` to go back
+- Color-coded entity types: todo (blue), goal (green), kudos (magenta), til (cyan), study (yellow), slack (gray)
+- `q` to quit from either panel
+- Use `--ai` for plain text output (for AI agents or scripts)
+
 ## CLI Commands
 
 For full syntax details, see the [CLI Reference](/guide/cli-usage).
 
-| Command             | Description                               |
-| ------------------- | ----------------------------------------- |
-| `rmbr tag add`      | Tag an entity (creates the tag if needed) |
-| `rmbr tag remove`   | Remove a tag from an entity               |
-| `rmbr tag list`     | List all tags                             |
-| `rmbr tag entities` | List all entities with a given tag        |
-| `rmbr tag show`     | Show all tags for a specific entity       |
+| Command             | Description                                      |
+| ------------------- | ------------------------------------------------ |
+| `rmbr tag add`      | Tag an entity (creates the tag if needed)        |
+| `rmbr tag remove`   | Remove a tag from an entity                      |
+| `rmbr tag list`     | Interactive TUI (default) or plain text (`--ai`) |
+| `rmbr tag entities` | List all entities with a given tag               |
+| `rmbr tag show`     | Show all tags for a specific entity              |
 
 ## MCP Tools
 

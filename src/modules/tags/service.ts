@@ -1,4 +1,4 @@
-import { eq, and, type SQL } from 'drizzle-orm';
+import { eq, and, count, type SQL } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../core/drizzle.ts';
 import { NotFoundError } from '../../core/errors.ts';
 import type { Tag, EntityTag, EntityType } from './types.ts';
@@ -123,5 +123,26 @@ export const TagService = {
   listTags(db: DrizzleDatabase): readonly Tag[] {
     const rows = db.select().from(tags).orderBy(tags.name).all();
     return rows.map(toTag);
+  },
+
+  listTagsWithCounts(db: DrizzleDatabase): readonly {
+    readonly name: string;
+    readonly id: number;
+    readonly created_at: string;
+    readonly entityCount: number;
+  }[] {
+    const rows = db
+      .select({
+        id: tags.id,
+        name: tags.name,
+        created_at: tags.created_at,
+        entityCount: count(entityTags.id),
+      })
+      .from(tags)
+      .leftJoin(entityTags, eq(entityTags.tag_id, tags.id))
+      .groupBy(tags.id)
+      .orderBy(tags.name)
+      .all();
+    return rows;
   },
 };

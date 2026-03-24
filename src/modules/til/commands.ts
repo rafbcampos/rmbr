@@ -3,6 +3,11 @@ import type { DrizzleDatabase } from '../../core/drizzle.ts';
 import type { TilFilters } from './service.ts';
 import { TilService } from './service.ts';
 import { parseId } from '../../shared/validation.ts';
+import { parseStringArray } from '../../shared/json-array.ts';
+
+function hasFilterFlags(opts: { domain?: string; includeDeleted?: boolean }): boolean {
+  return opts.domain !== undefined || opts.includeDeleted === true;
+}
 
 export function registerCommands(program: Command, db: DrizzleDatabase): void {
   const til = program.command('til').description('Manage today-I-learned entries');
@@ -18,19 +23,45 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
 
   til
     .command('list')
-    .description('List TIL entries')
+    .description('List TIL entries (interactive TUI by default, plain text with --ai)')
     .option('--domain <domain>', 'Filter by domain')
     .option('--include-deleted', 'Include soft-deleted TIL entries')
+    .option('--ai', 'Plain text output for AI agents')
     .option('--page <page>', 'Page number', '1')
-    .action((opts: { domain?: string; includeDeleted?: boolean; page?: string }) => {
-      const filters: TilFilters = {
-        ...(opts.domain !== undefined ? { domain: opts.domain } : {}),
-        ...(opts.includeDeleted === true ? { includeDeleted: true } : {}),
-      };
-      const page = parseId(opts.page ?? '1', 'page');
-      const result = TilService.list(db, filters, { page, pageSize: 20 });
-      console.log(JSON.stringify(result, null, 2));
-    });
+    .option('--page-size <n>', 'Page size', '20')
+    .action(
+      async (opts: {
+        domain?: string;
+        includeDeleted?: boolean;
+        ai?: boolean;
+        page: string;
+        pageSize: string;
+      }) => {
+        const useTui = opts.ai !== true && !hasFilterFlags(opts) && process.stdout.isTTY === true;
+
+        if (useTui) {
+          const { renderTilApp } = await import('./tui/app.tsx');
+          await renderTilApp(db);
+          return;
+        }
+
+        const filters: TilFilters = {
+          ...(opts.domain !== undefined ? { domain: opts.domain } : {}),
+          ...(opts.includeDeleted === true ? { includeDeleted: true } : {}),
+        };
+        const result = TilService.list(db, filters, {
+          page: parseId(opts.page, 'page'),
+          pageSize: parseId(opts.pageSize, 'pageSize'),
+        });
+        console.log(`TILs (page ${result.page}/${result.totalPages}, total: ${result.total}):`);
+        for (const t of result.data) {
+          const domainStr = t.domain !== null ? t.domain : '?';
+          const tagsCount = parseStringArray(t.tags).length;
+          const tagsStr = tagsCount > 0 ? ` (${tagsCount} tags)` : '';
+          console.log(`  #${t.id} [${domainStr}] ${t.title ?? t.raw_input}${tagsStr}`);
+        }
+      },
+    );
 
   til
     .command('show')
@@ -38,7 +69,12 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
     .argument('<id>', 'TIL ID')
     .action((id: string) => {
       const result = TilService.getById(db, parseId(id, 'til'));
-      console.log(JSON.stringify(result, null, 2));
+      console.log(`TIL #${result.id} [${result.domain ?? '?'}]`);
+      if (result.title) console.log(`  Title: ${result.title}`);
+      if (result.content) console.log(`  Content: ${result.content}`);
+      const tags = parseStringArray(result.tags);
+      if (tags.length > 0) console.log(`  Tags: ${tags.join(', ')}`);
+      console.log(`  Raw: ${result.raw_input}`);
     });
 
   til

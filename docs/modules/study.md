@@ -45,24 +45,36 @@ Accumulate notes and resource URLs over time. Each add appends to the respective
 
 `rmbr study next` returns the oldest queued topic — a simple FIFO queue for deciding what to study next.
 
+## Interactive TUI
+
+`rmbr study list` opens an interactive terminal UI:
+
+- Arrow keys to navigate, `q` to quit
+- Status filter: `1` all, `2` queued, `3` in_progress, `4` completed, `5` parked
+- Domain cycle: `d` to cycle through available domains
+- Actions: `Enter` start (queued/parked), `c` complete (in_progress), `p` park (in_progress)
+- Color-coded statuses: queued (blue), in_progress (green), completed (cyan), parked (yellow)
+- Shows next queued topic hint in the status bar
+- Use `--ai` for plain text output (for AI agents or scripts)
+
 ## CLI Commands
 
 For full syntax details, see the [CLI Reference](/guide/cli-usage).
 
-| Command               | Description                                                    |
-| --------------------- | -------------------------------------------------------------- |
-| `rmbr study add`      | Create a new study topic from raw input                        |
-| `rmbr study list`     | List topics, optionally filter by status (`--include-deleted`) |
-| `rmbr study show`     | Show a single topic by ID                                      |
-| `rmbr study start`    | Transition a topic to `in_progress`                            |
-| `rmbr study done`     | Mark a topic as `completed`                                    |
-| `rmbr study park`     | Park an in-progress topic                                      |
-| `rmbr study delete`   | Soft-delete a study topic (hidden from lists by default)       |
-| `rmbr study restore`  | Restore a soft-deleted study topic                             |
-| `rmbr study note`     | Append a note to a topic                                       |
-| `rmbr study resource` | Append a resource URL to a topic                               |
-| `rmbr study next`     | Show the next queued topic (FIFO)                              |
-| `rmbr study enrich`   | Enrich a topic with structured fields                          |
+| Command               | Description                                                              |
+| --------------------- | ------------------------------------------------------------------------ |
+| `rmbr study add`      | Create a new study topic from raw input                                  |
+| `rmbr study list`     | Interactive TUI (default) or plain text (`--ai`, `--status`, `--domain`) |
+| `rmbr study show`     | Show a single topic by ID                                                |
+| `rmbr study start`    | Transition a topic to `in_progress`                                      |
+| `rmbr study done`     | Mark a topic as `completed`                                              |
+| `rmbr study park`     | Park an in-progress topic                                                |
+| `rmbr study delete`   | Soft-delete a study topic (hidden from lists by default)                 |
+| `rmbr study restore`  | Restore a soft-deleted study topic                                       |
+| `rmbr study note`     | Append a note to a topic                                                 |
+| `rmbr study resource` | Append a resource URL to a topic                                         |
+| `rmbr study next`     | Show the next queued topic (FIFO)                                        |
+| `rmbr study enrich`   | Enrich a topic with structured fields                                    |
 
 ## MCP Tools
 

@@ -266,6 +266,38 @@ describe('StudyService', () => {
     });
   });
 
+  describe('getDomains', () => {
+    it('returns distinct non-null domains sorted alphabetically', () => {
+      insertStudyTopic(db, { raw_input: 'Topic 1', domain: 'programming' });
+      insertStudyTopic(db, { raw_input: 'Topic 2', domain: 'mathematics' });
+      insertStudyTopic(db, { raw_input: 'Topic 3', domain: 'programming' });
+      insertStudyTopic(db, { raw_input: 'Topic 4', domain: 'design' });
+
+      const domains = StudyService.getDomains(db);
+      expect(domains).toEqual(['design', 'mathematics', 'programming']);
+    });
+
+    it('excludes null domains', () => {
+      insertStudyTopic(db, { raw_input: 'Topic 1', domain: 'programming' });
+      insertStudyTopic(db, { raw_input: 'Topic 2' });
+
+      const domains = StudyService.getDomains(db);
+      expect(domains).toEqual(['programming']);
+    });
+
+    it('returns empty array when no topics have domains', () => {
+      insertStudyTopic(db, { raw_input: 'Topic 1' });
+
+      const domains = StudyService.getDomains(db);
+      expect(domains).toEqual([]);
+    });
+
+    it('returns empty array when no topics exist', () => {
+      const domains = StudyService.getDomains(db);
+      expect(domains).toEqual([]);
+    });
+  });
+
   describe('soft-delete', () => {
     it('excludes soft-deleted study topics from list by default', () => {
       insertStudyTopic(db, { raw_input: 'Active topic' });

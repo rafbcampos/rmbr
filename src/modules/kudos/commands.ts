@@ -5,6 +5,10 @@ import { KudosService } from './service.ts';
 import { isKudosDirection } from './types.ts';
 import { parseId } from '../../shared/validation.ts';
 
+function hasFilterFlags(opts: { direction?: string; includeDeleted?: boolean }): boolean {
+  return opts.direction !== undefined || opts.includeDeleted === true;
+}
+
 export function registerCommands(program: Command, db: DrizzleDatabase): void {
   const kudos = program.command('kudos').description('Manage kudos');
 
@@ -19,21 +23,46 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
 
   kudos
     .command('list')
-    .description('List kudos')
+    .description('List kudos (interactive TUI by default, plain text with --ai)')
     .option('--direction <direction>', 'Filter by direction (given or received)')
     .option('--include-deleted', 'Include soft-deleted kudos')
-    .option('--page <page>', 'Page number', '1')
-    .action((opts: { direction?: string; includeDeleted?: boolean; page?: string }) => {
-      const filters: KudosFilters = {
-        ...(opts.direction !== undefined && isKudosDirection(opts.direction)
-          ? { direction: opts.direction }
-          : {}),
-        ...(opts.includeDeleted === true ? { includeDeleted: true } : {}),
-      };
-      const page = parseId(opts.page ?? '1', 'page');
-      const result = KudosService.list(db, filters, { page, pageSize: 20 });
-      console.log(JSON.stringify(result, null, 2));
-    });
+    .option('--ai', 'Plain text output for AI agents')
+    .option('--page <n>', 'Page number', '1')
+    .option('--page-size <n>', 'Page size', '20')
+    .action(
+      async (opts: {
+        direction?: string;
+        includeDeleted?: boolean;
+        ai?: boolean;
+        page: string;
+        pageSize: string;
+      }) => {
+        const useTui = opts.ai !== true && !hasFilterFlags(opts) && process.stdout.isTTY === true;
+
+        if (useTui) {
+          const { renderKudosApp } = await import('./tui/app.tsx');
+          await renderKudosApp(db);
+          return;
+        }
+
+        const filters: KudosFilters = {
+          ...(opts.direction !== undefined && isKudosDirection(opts.direction)
+            ? { direction: opts.direction }
+            : {}),
+          ...(opts.includeDeleted === true ? { includeDeleted: true } : {}),
+        };
+        const result = KudosService.list(db, filters, {
+          page: parseId(opts.page, 'page'),
+          pageSize: parseId(opts.pageSize, 'pageSize'),
+        });
+        console.log(`Kudos (page ${result.page}/${result.totalPages}, total: ${result.total}):`);
+        for (const k of result.data) {
+          const dirStr = k.direction !== null ? k.direction : '?';
+          const personStr = k.person ? `${k.person}: ` : '';
+          console.log(`  #${k.id} [${dirStr}] ${personStr}${k.summary ?? k.raw_input}`);
+        }
+      },
+    );
 
   kudos
     .command('show')
@@ -41,7 +70,12 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
     .argument('<id>', 'Kudos ID')
     .action((id: string) => {
       const result = KudosService.getById(db, parseId(id, 'kudos'));
-      console.log(JSON.stringify(result, null, 2));
+      console.log(`Kudos #${result.id} [${result.direction ?? '?'}]`);
+      if (result.person) console.log(`  Person: ${result.person}`);
+      if (result.summary) console.log(`  Summary: ${result.summary}`);
+      if (result.context) console.log(`  Context: ${result.context}`);
+      if (result.goal_id) console.log(`  Goal: #${result.goal_id}`);
+      console.log(`  Raw: ${result.raw_input}`);
     });
 
   kudos
@@ -81,7 +115,7 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
           fields['goal_id'] = parseId(opts.goalId, 'goal');
         }
         const result = KudosService.enrich(db, parseId(id, 'kudos'), fields);
-        console.log(JSON.stringify(result, null, 2));
+        console.log(`Enriched kudos #${result.id}: ${result.summary ?? result.raw_input}`);
       },
     );
 

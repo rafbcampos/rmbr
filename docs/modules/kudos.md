@@ -17,18 +17,27 @@ Track recognition given and received. Link kudos to goals for performance review
 | created_at        | `string`                 | ISO timestamp                |
 | updated_at        | `string`                 | ISO timestamp                |
 
+## Interactive TUI
+
+`rmbr kudos list` opens an interactive terminal UI:
+
+- Arrow keys to navigate, `q` to quit
+- Direction filter: `1` all, `2` given, `3` received
+- Color-coded directions: given (green), received (blue)
+- Use `--ai` for plain text output (for AI agents or scripts)
+
 ## CLI Commands
 
 For full syntax details, see the [CLI Reference](/guide/cli-usage).
 
-| Command              | Description                                                      |
-| -------------------- | ---------------------------------------------------------------- |
-| `rmbr kudos add`     | Record a new kudos from raw input                                |
-| `rmbr kudos list`    | List kudos, optionally filter by direction (`--include-deleted`) |
-| `rmbr kudos show`    | Show a single kudos entry by ID                                  |
-| `rmbr kudos delete`  | Soft-delete a kudos entry (hidden from lists by default)         |
-| `rmbr kudos restore` | Restore a soft-deleted kudos entry                               |
-| `rmbr kudos enrich`  | Enrich a kudos with direction, person, summary, context          |
+| Command              | Description                                                     |
+| -------------------- | --------------------------------------------------------------- |
+| `rmbr kudos add`     | Record a new kudos from raw input                               |
+| `rmbr kudos list`    | Interactive TUI (default) or plain text (`--ai`, `--direction`) |
+| `rmbr kudos show`    | Show a single kudos entry by ID                                 |
+| `rmbr kudos delete`  | Soft-delete a kudos entry (hidden from lists by default)        |
+| `rmbr kudos restore` | Restore a soft-deleted kudos entry                              |
+| `rmbr kudos enrich`  | Enrich a kudos with direction, person, summary, context         |
 
 ## MCP Tools
 

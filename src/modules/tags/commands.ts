@@ -39,15 +39,26 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
 
   tag
     .command('list')
-    .description('List all tags')
-    .action(() => {
+    .description('List all tags (interactive TUI by default, plain text with --ai)')
+    .option('--ai', 'Plain text output for AI agents')
+    .action(async (opts: { ai?: boolean }) => {
+      const useTui = opts.ai !== true && process.stdout.isTTY === true;
+
+      if (useTui) {
+        const { renderTagApp } = await import('./tui/app.tsx');
+        await renderTagApp(db);
+        return;
+      }
+
       const allTags = TagService.listTags(db);
       if (allTags.length === 0) {
         console.log('No tags found');
         return;
       }
+      console.log('Tags:');
       for (const t of allTags) {
-        console.log(`  ${t.name} (id: ${t.id})`);
+        const entityCount = TagService.getEntitiesByTag(db, t.name).length;
+        console.log(`  ${t.name} (${entityCount} entities)`);
       }
     });
 

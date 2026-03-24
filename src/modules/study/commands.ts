@@ -6,6 +6,14 @@ import { parseStudyStatus } from './types.ts';
 import { parseStringArray } from '../../shared/json-array.ts';
 import { parseId } from '../../shared/validation.ts';
 
+function hasFilterFlags(opts: {
+  status?: string;
+  domain?: string;
+  includeDeleted?: boolean;
+}): boolean {
+  return opts.status !== undefined || opts.domain !== undefined || opts.includeDeleted === true;
+}
+
 export function registerCommands(program: Command, db: DrizzleDatabase): void {
   const study = program.command('study').description('Manage study topics');
 
@@ -19,30 +27,36 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
 
   study
     .command('list')
-    .description('List study topics')
+    .description('List study topics (interactive TUI by default, plain text with --ai)')
     .option('--status <status>', 'Filter by status')
     .option('--domain <domain>', 'Filter by domain')
     .option('--include-deleted', 'Include soft-deleted study topics')
+    .option('--ai', 'Plain text output for AI agents')
     .option('--page <n>', 'Page number', '1')
     .option('--page-size <n>', 'Page size', '20')
     .action(
-      (opts: {
+      async (opts: {
         status?: string;
         domain?: string;
         includeDeleted?: boolean;
+        ai?: boolean;
         page: string;
         pageSize: string;
       }) => {
+        const useTui = opts.ai !== true && !hasFilterFlags(opts) && process.stdout.isTTY === true;
+
+        if (useTui) {
+          const { renderStudyApp } = await import('./tui/app.tsx');
+          await renderStudyApp(db);
+          return;
+        }
+
         const filtersToPass = {
           ...(opts.status ? { status: parseStudyStatus(opts.status) } : {}),
           ...(opts.domain ? { domain: opts.domain } : {}),
           ...(opts.includeDeleted === true ? { includeDeleted: true } : {}),
         };
-        const hasFilters =
-          filtersToPass.status !== undefined ||
-          filtersToPass.domain !== undefined ||
-          filtersToPass.includeDeleted !== undefined;
-        const result = StudyService.list(db, hasFilters ? filtersToPass : undefined, {
+        const result = StudyService.list(db, filtersToPass, {
           page: parseId(opts.page, 'page'),
           pageSize: parseId(opts.pageSize, 'pageSize'),
         });

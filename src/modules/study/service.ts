@@ -1,4 +1,4 @@
-import { eq, sql, desc, asc, type SQL } from 'drizzle-orm';
+import { eq, sql, desc, asc, isNotNull, type SQL } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../core/drizzle.ts';
 import type { PaginatedResult, PaginationParams } from '../../core/types.ts';
 import { StudyStatus } from '../../core/types.ts';
@@ -126,6 +126,16 @@ export const StudyService = {
       return null;
     }
     return toStudyTopic(row);
+  },
+
+  getDomains(db: DrizzleDatabase): readonly string[] {
+    const rows = db
+      .selectDistinct({ domain: studyTopics.domain })
+      .from(studyTopics)
+      .where(isNotNull(studyTopics.domain))
+      .orderBy(studyTopics.domain)
+      .all();
+    return rows.map(r => r.domain!);
   },
 
   enrich(db: DrizzleDatabase, id: number, fields: EnrichFields): StudyTopic {

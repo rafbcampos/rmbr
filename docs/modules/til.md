@@ -28,6 +28,15 @@ TIL supports full-text search via `rmbr til search <query>` and the `rmbr_til_se
 
 Each TIL can be classified into a domain (e.g., `typescript`, `devops`, `sql`). List all unique domains with `rmbr til domains` or the `rmbr_til_domains` MCP tool.
 
+## Interactive TUI
+
+`rmbr til list` opens an interactive terminal UI:
+
+- Arrow keys to navigate, `q` to quit
+- Domain cycle: `d` to cycle through available domains
+- Shows domain in cyan, tag count, and creation date per entry
+- Use `--ai` for plain text output (for AI agents or scripts)
+
 ## CLI Commands
 
 For full syntax details, see the [CLI Reference](/guide/cli-usage).
@@ -35,7 +44,7 @@ For full syntax details, see the [CLI Reference](/guide/cli-usage).
 | Command            | Description                                                  |
 | ------------------ | ------------------------------------------------------------ |
 | `rmbr til add`     | Create a new TIL from raw input                              |
-| `rmbr til list`    | List TILs, optionally filter by domain (`--include-deleted`) |
+| `rmbr til list`    | Interactive TUI (default) or plain text (`--ai`, `--domain`) |
 | `rmbr til show`    | Show a single TIL by ID                                      |
 | `rmbr til search`  | Full-text search across TILs                                 |
 | `rmbr til domains` | List all unique domains                                      |

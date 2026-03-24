@@ -3,7 +3,34 @@ import type { DrizzleDatabase } from '../../core/drizzle.ts';
 import type { SlackFilters } from './service.ts';
 import { SlackService } from './service.ts';
 import { isSlackSentiment } from './types.ts';
+import type { SlackMessage } from './types.ts';
 import { parseId } from '../../shared/validation.ts';
+
+function hasFilterFlags(opts: {
+  channel?: string;
+  processed?: boolean;
+  sentiment?: string;
+  includeDeleted?: boolean;
+}): boolean {
+  return (
+    opts.channel !== undefined ||
+    opts.processed === true ||
+    opts.sentiment !== undefined ||
+    opts.includeDeleted === true
+  );
+}
+
+function formatSlackLine(msg: SlackMessage): string {
+  const badge = msg.processed === 1 ? 'processed' : 'unprocessed';
+  const channel = msg.channel !== null ? ` #${msg.channel}` : '';
+  const sender = msg.sender !== null ? ` @${msg.sender}` : '';
+  const content =
+    msg.raw_content.length > 60 ? msg.raw_content.slice(0, 60) + '...' : msg.raw_content;
+  const sentiment = msg.sentiment !== null ? ` [${msg.sentiment}]` : '';
+  const todo = msg.todo_id !== null ? ` T#${msg.todo_id}` : '';
+  const goal = msg.goal_id !== null ? ` G#${msg.goal_id}` : '';
+  return `  #${msg.id} [${badge}]${channel}${sender}: ${content}${sentiment}${todo}${goal}`;
+}
 
 export function registerCommands(program: Command, db: DrizzleDatabase): void {
   const slack = program.command('slack').description('Manage Slack messages');
@@ -22,20 +49,32 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
 
   slack
     .command('list')
-    .description('List Slack messages')
+    .description('List Slack messages (interactive TUI by default, plain text with --ai)')
     .option('--channel <channel>', 'Filter by channel')
     .option('--processed', 'Filter by processed status')
     .option('--sentiment <sentiment>', 'Filter by sentiment')
     .option('--include-deleted', 'Include soft-deleted messages')
+    .option('--ai', 'Plain text output for AI agents')
     .option('--page <page>', 'Page number', '1')
+    .option('--page-size <n>', 'Page size', '20')
     .action(
-      (opts: {
+      async (opts: {
         channel?: string;
         processed?: boolean;
         sentiment?: string;
         includeDeleted?: boolean;
-        page?: string;
+        ai?: boolean;
+        page: string;
+        pageSize: string;
       }) => {
+        const useTui = opts.ai !== true && !hasFilterFlags(opts) && process.stdout.isTTY === true;
+
+        if (useTui) {
+          const { renderSlackApp } = await import('./tui/app.tsx');
+          await renderSlackApp(db);
+          return;
+        }
+
         const filters: SlackFilters = {
           ...(opts.channel !== undefined ? { channel: opts.channel } : {}),
           ...(opts.processed === true ? { processed: 1 } : {}),
@@ -45,8 +84,14 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
           ...(opts.includeDeleted === true ? { includeDeleted: true } : {}),
         };
         const page = parseId(opts.page ?? '1', 'page');
-        const result = SlackService.list(db, filters, { page, pageSize: 20 });
-        console.log(JSON.stringify(result, null, 2));
+        const pageSize = parseId(opts.pageSize ?? '20', 'pageSize');
+        const result = SlackService.list(db, filters, { page, pageSize });
+        console.log(
+          `Slack messages (page ${result.page}/${result.totalPages}, total: ${result.total}):`,
+        );
+        for (const msg of result.data) {
+          console.log(formatSlackLine(msg));
+        }
       },
     );
 
@@ -61,7 +106,7 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
         return;
       }
       const result = SlackService.setSentiment(db, parseId(id, 'slack message'), sentiment);
-      console.log(JSON.stringify(result, null, 2));
+      console.log(`Slack message #${result.id} sentiment set to ${result.sentiment}`);
     });
 
   slack
@@ -75,7 +120,7 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
         parseId(id, 'slack message'),
         parseId(todoId, 'todo'),
       );
-      console.log(JSON.stringify(result, null, 2));
+      console.log(`Slack message #${result.id} linked to todo #${result.todo_id}`);
     });
 
   slack
@@ -89,7 +134,7 @@ export function registerCommands(program: Command, db: DrizzleDatabase): void {
         parseId(id, 'slack message'),
         parseId(goalId, 'goal'),
       );
-      console.log(JSON.stringify(result, null, 2));
+      console.log(`Slack message #${result.id} linked to goal #${result.goal_id}`);
     });
 
   slack

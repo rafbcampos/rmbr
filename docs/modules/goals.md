@@ -57,6 +57,17 @@ Aggregate goal data into a quarterly summary for review conversations.
 | kpi_summary         | `string`  | Summary of KPI progress       |
 | generated_narrative | `string`  | AI-generated review narrative |
 
+## Interactive TUI
+
+`rmbr goal list` opens an interactive terminal UI:
+
+- Arrow keys to navigate, `q` to quit
+- Status filter: `1` all, `2` draft, `3` active, `4` completed, `5` abandoned
+- Quarter cycle: `r` to cycle through Q1-Q4
+- Actions: `Enter` activate (draft), `d` complete (active), `a` abandon (active)
+- Color-coded statuses: draft (gray), active (green), completed (cyan), abandoned (red)
+- Use `--ai` for plain text output (for AI agents or scripts)
+
 ## CLI Commands
 
 For full syntax details, see the [CLI Reference](/guide/cli-usage).
@@ -64,7 +75,7 @@ For full syntax details, see the [CLI Reference](/guide/cli-usage).
 | Command              | Description                                                     |
 | -------------------- | --------------------------------------------------------------- |
 | `rmbr goal add`      | Create a new goal from raw input                                |
-| `rmbr goal list`     | List goals, optionally filter by status (`--include-deleted`)   |
+| `rmbr goal list`     | Interactive TUI (default) or plain text (`--ai`, `-s`, `-q`)    |
 | `rmbr goal show`     | Show a single goal by ID                                        |
 | `rmbr goal activate` | Transition a goal to `active`                                   |
 | `rmbr goal complete` | Mark a goal as completed                                        |

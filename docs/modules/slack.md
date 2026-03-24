@@ -28,20 +28,32 @@ Slack messages follow a processing workflow rather than a status lifecycle:
 3. **Link** to existing todos or goals for cross-referencing
 4. **Mark as processed** when the message has been fully handled
 
+## Interactive TUI
+
+`rmbr slack list` opens an interactive terminal UI:
+
+- Arrow keys to navigate, `q` to quit
+- Processed filter: `1` all, `2` unprocessed, `3` processed
+- Sentiment cycle: `s` to cycle through positive/negative/neutral
+- Actions: `Enter` mark as processed (if unprocessed)
+- Sentiment colors: positive (green), negative (red), neutral (gray)
+- Shows channel, sender, content snippet, and linked entities (T#N, G#N)
+- Use `--ai` for plain text output (for AI agents or scripts)
+
 ## CLI Commands
 
 For full syntax details, see the [CLI Reference](/guide/cli-usage).
 
-| Command                | Description                                                      |
-| ---------------------- | ---------------------------------------------------------------- |
-| `rmbr slack ingest`    | Ingest a Slack message from raw content                          |
-| `rmbr slack list`      | List messages, optionally filter by status (`--include-deleted`) |
-| `rmbr slack sentiment` | Set sentiment on a message                                       |
-| `rmbr slack link-todo` | Link a message to an existing todo                               |
-| `rmbr slack link-goal` | Link a message to an existing goal                               |
-| `rmbr slack process`   | Mark a message as processed                                      |
-| `rmbr slack delete`    | Soft-delete a slack message (hidden from lists by default)       |
-| `rmbr slack restore`   | Restore a soft-deleted slack message                             |
+| Command                | Description                                                                  |
+| ---------------------- | ---------------------------------------------------------------------------- |
+| `rmbr slack ingest`    | Ingest a Slack message from raw content                                      |
+| `rmbr slack list`      | Interactive TUI (default) or plain text (`--ai`, `--channel`, `--sentiment`) |
+| `rmbr slack sentiment` | Set sentiment on a message                                                   |
+| `rmbr slack link-todo` | Link a message to an existing todo                                           |
+| `rmbr slack link-goal` | Link a message to an existing goal                                           |
+| `rmbr slack process`   | Mark a message as processed                                                  |
+| `rmbr slack delete`    | Soft-delete a slack message (hidden from lists by default)                   |
+| `rmbr slack restore`   | Restore a soft-deleted slack message                                         |
 
 ## MCP Tools
 
