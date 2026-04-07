@@ -1,0 +1,22 @@
+[package]
+name = "rmbr"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Your second brain at work — track todos, goals, kudos, and learnings locally"
+license = "MIT"
+repository = "https://github.com/rafaelcampos/rmbr"
+authors = ["Rafael Campos"]
+keywords = ["cli", "tui", "productivity", "todo", "second-brain"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+chrono = { version = "0.4.44", features = ["serde"] }
+clap = { version = "4.6.0", features = ["derive"] }
+crossterm = "0.29.0"
+dirs = "6.0.0"
+nucleo = "0.5.0"
+nucleo-matcher = "0.3.1"
+ratatui = "0.30.0"
+rusqlite = { version = "0.39.0", features = ["bundled", "chrono"] }
+thiserror = "2.0.18"
