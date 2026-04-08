@@ -12,15 +12,21 @@ pub struct FormField {
     pub required: bool,
     /// If set, the field cycles through these options instead of free text.
     pub options: Vec<String>,
+    /// Hint text shown when the value is empty (e.g. "YYYY-MM-DD").
+    pub placeholder: String,
+    /// Per-field validation error, shown inline in red.
+    pub error: Option<String>,
 }
 
 impl FormField {
-    pub fn text(label: &str, default: &str, required: bool) -> Self {
+    pub fn text(label: &str, default: &str, required: bool, placeholder: &str) -> Self {
         Self {
             label: label.to_string(),
             value: default.to_string(),
             required,
             options: Vec::new(),
+            placeholder: placeholder.to_string(),
+            error: None,
         }
     }
 
@@ -30,6 +36,8 @@ impl FormField {
             value: default.to_string(),
             required: true,
             options,
+            placeholder: String::new(),
+            error: None,
         }
     }
 
@@ -60,7 +68,7 @@ impl FormField {
 pub enum FormAction {
     /// Form is still being edited.
     Editing,
-    /// User submitted the form (Enter on last field or Ctrl+S).
+    /// User submitted the form (Enter on last field).
     Submit,
     /// User cancelled (Esc).
     Cancel,
@@ -97,6 +105,31 @@ impl Form {
         if v.is_empty() { None } else { Some(v) }
     }
 
+    /// Validates that a field is non-empty. Sets an inline error and returns None if empty.
+    pub fn require_non_empty(&mut self, label: &str) -> Option<String> {
+        let value = self.value(label).to_string();
+        if value.is_empty() {
+            self.set_field_error(label, format!("{label} is required."));
+            None
+        } else {
+            Some(value)
+        }
+    }
+
+    /// Sets a validation error on a specific field by label.
+    pub fn set_field_error(&mut self, label: &str, msg: String) {
+        if let Some(field) = self.fields.iter_mut().find(|f| f.label == label) {
+            field.error = Some(msg);
+        }
+    }
+
+    /// Clears all field errors.
+    pub fn clear_errors(&mut self) {
+        for field in &mut self.fields {
+            field.error = None;
+        }
+    }
+
     /// Handles key events for the form. Returns a `FormAction`.
     pub fn handle_key(&mut self, key: KeyEvent) -> FormAction {
         match key.code {
@@ -124,8 +157,8 @@ impl Form {
             }
             KeyCode::Char(c) => {
                 if let Some(field) = self.fields.get_mut(self.focused) {
+                    field.error = None;
                     if field.is_select() {
-                        // For select fields, Left/Right or typed chars cycle options.
                         field.cycle_option_forward();
                     } else {
                         field.value.push(c);
@@ -136,6 +169,7 @@ impl Form {
             KeyCode::Backspace => {
                 if let Some(field) = self.fields.get_mut(self.focused)
                     && !field.is_select() {
+                        field.error = None;
                         field.value.pop();
                     }
                 FormAction::Editing
@@ -167,11 +201,11 @@ impl Form {
         let inner = block.inner(area);
         frame.render_widget(block, area);
 
-        // Each field: label + input, 2 lines height.
+        // Each field: label + input + error, 3 lines height.
         let constraints: Vec<Constraint> = self
             .fields
             .iter()
-            .map(|_| Constraint::Length(2))
+            .map(|_| Constraint::Length(3))
             .chain(std::iter::once(Constraint::Length(2))) // submit hint
             .chain(std::iter::once(Constraint::Min(0)))    // spacer
             .collect();
@@ -180,20 +214,44 @@ impl Form {
 
         for (i, field) in self.fields.iter().enumerate() {
             let is_focused = i == self.focused;
-            let label_style = if is_focused {
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(Color::Gray)
-            };
+            let has_error = field.error.is_some();
+
+            let label_color = if has_error { Color::Red } else if is_focused { Color::Cyan } else { Color::Gray };
+            let mut label_style = Style::default().fg(label_color);
+            if is_focused {
+                label_style = label_style.add_modifier(Modifier::BOLD);
+            }
 
             let required_marker = if field.required { "*" } else { "" };
 
-            let value_display = if field.is_select() {
-                format!("< {} >", field.value)
+            let value_line = if field.is_select() {
+                Line::from(format!("    < {} >", field.value))
+            } else if field.value.is_empty() && !field.placeholder.is_empty() {
+                if is_focused {
+                    Line::from(vec![
+                        Span::raw("    "),
+                        Span::styled(&field.placeholder, Style::default().fg(Color::DarkGray)),
+                        Span::styled("▏", Style::default().fg(Color::Cyan)),
+                    ])
+                } else {
+                    Line::from(Span::styled(
+                        format!("    {}", field.placeholder),
+                        Style::default().fg(Color::DarkGray),
+                    ))
+                }
             } else if is_focused {
-                format!("{}▏", field.value)
+                Line::from(format!("    {}▏", field.value))
             } else {
-                field.value.clone()
+                Line::from(format!("    {}", field.value))
+            };
+
+            let error_line = if let Some(err) = &field.error {
+                Line::from(Span::styled(
+                    format!("    {err}"),
+                    Style::default().fg(Color::Red),
+                ))
+            } else {
+                Line::from("")
             };
 
             let lines = vec![
@@ -201,7 +259,8 @@ impl Form {
                     format!("  {}{required_marker}: ", field.label),
                     label_style,
                 )),
-                Line::from(format!("    {value_display}")),
+                value_line,
+                error_line,
             ];
 
             let paragraph = Paragraph::new(lines);
@@ -232,8 +291,8 @@ mod tests {
         Form::new(
             "Test",
             vec![
-                FormField::text("Title", "", true),
-                FormField::text("Description", "", false),
+                FormField::text("Title", "", true, ""),
+                FormField::text("Description", "", false, ""),
                 FormField::select(
                     "Priority",
                     vec!["low".to_string(), "medium".to_string(), "high".to_string()],
@@ -329,5 +388,60 @@ mod tests {
         let form = test_form();
         assert!(form.value_opt("Title").is_none());
         assert!(form.value_opt("Priority").is_some()); // has default "medium"
+    }
+
+    #[test]
+    fn require_non_empty_returns_value_or_sets_error() {
+        let mut form = test_form();
+        // Empty field returns None and sets error.
+        assert!(form.require_non_empty("Title").is_none());
+        assert_eq!(
+            form.fields[0].error.as_deref(),
+            Some("Title is required."),
+        );
+
+        // Non-empty field returns Some and no error.
+        form.clear_errors();
+        form.handle_key(KeyEvent::from(KeyCode::Char('H')));
+        form.handle_key(KeyEvent::from(KeyCode::Char('i')));
+        let result = form.require_non_empty("Title");
+        assert_eq!(result.as_deref(), Some("Hi"));
+        assert!(form.fields[0].error.is_none());
+    }
+
+    #[test]
+    fn set_field_error_and_clear() {
+        let mut form = test_form();
+        form.set_field_error("Title", "Title is required.".into());
+        assert_eq!(
+            form.fields.iter().find(|f| f.label == "Title").unwrap().error.as_deref(),
+            Some("Title is required."),
+        );
+
+        form.clear_errors();
+        assert!(form.fields.iter().all(|f| f.error.is_none()));
+    }
+
+    #[test]
+    fn typing_clears_field_error() {
+        let mut form = test_form();
+        form.set_field_error("Title", "Required.".into());
+        form.handle_key(KeyEvent::from(KeyCode::Char('a')));
+        assert!(form.fields[0].error.is_none());
+    }
+
+    #[test]
+    fn backspace_clears_field_error() {
+        let mut form = test_form();
+        form.handle_key(KeyEvent::from(KeyCode::Char('x')));
+        form.set_field_error("Title", "Bad input.".into());
+        form.handle_key(KeyEvent::from(KeyCode::Backspace));
+        assert!(form.fields[0].error.is_none());
+    }
+
+    #[test]
+    fn placeholder_stored_on_text_field() {
+        let field = FormField::text("Due date", "", false, "YYYY-MM-DD");
+        assert_eq!(field.placeholder, "YYYY-MM-DD");
     }
 }

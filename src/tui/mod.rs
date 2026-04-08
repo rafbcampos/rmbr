@@ -1,6 +1,9 @@
 pub mod views;
 pub mod widgets;
 
+#[cfg(test)]
+pub mod testutil;
+
 use std::io;
 use std::time::{Duration, Instant};
 

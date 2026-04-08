@@ -37,6 +37,26 @@ impl GoalView {
         }
     }
 
+    /// Creates a view that opens directly into Edit mode for the given item.
+    pub fn editing(db: &Database, id: i64) -> Self {
+        let mut view = Self::new();
+        view.reload(db);
+        view.loaded = true;
+        view.open_edit_by_id(id);
+        view
+    }
+
+    /// Switches to Edit mode for the item with the given `id`, if present in the list.
+    fn open_edit_by_id(&mut self, id: i64) {
+        if let Some(g) = self.list.items().iter().find(|g| g.id == id) {
+            self.edit_id = Some(g.id);
+            self.form = Some(Self::build_edit_form(g));
+            self.mode = ViewMode::Edit;
+        } else {
+            self.status_msg = Some(format!("Goal #{id} not found."));
+        }
+    }
+
     fn reload(&mut self, db: &Database) {
         let goals = GoalRepository::list(db, GoalFilter {
             include_deleted: self.show_deleted,
@@ -47,47 +67,46 @@ impl GoalView {
 
     fn build_add_form() -> Form {
         Form::new("Add Goal", vec![
-            FormField::text("Title", "", true),
-            FormField::text("Situation", "", false),
-            FormField::text("Task", "", false),
-            FormField::text("Due date", "", false),
-            FormField::text("Tags", "", false),
+            FormField::text("Title", "", true, ""),
+            FormField::text("Situation", "", false, ""),
+            FormField::text("Task", "", false, ""),
+            FormField::text("Due date", "", false, "YYYY-MM-DD"),
+            FormField::text("Tags", "", false, "tag1, tag2"),
         ])
     }
 
     fn build_edit_form(goal: &Goal) -> Form {
         Form::new("Edit Goal", vec![
-            FormField::text("Title", &goal.title, true),
-            FormField::text("Situation", goal.situation.as_deref().unwrap_or(""), false),
-            FormField::text("Task", goal.task.as_deref().unwrap_or(""), false),
-            FormField::text("Action", goal.action.as_deref().unwrap_or(""), false),
-            FormField::text("Result", goal.result.as_deref().unwrap_or(""), false),
+            FormField::text("Title", &goal.title, true, ""),
+            FormField::text("Situation", goal.situation.as_deref().unwrap_or(""), false, ""),
+            FormField::text("Task", goal.task.as_deref().unwrap_or(""), false, ""),
+            FormField::text("Action", goal.action.as_deref().unwrap_or(""), false, ""),
+            FormField::text("Result", goal.result.as_deref().unwrap_or(""), false, ""),
             FormField::select(
                 "Status",
                 vec!["not-started".to_string(), "in-progress".to_string(), "achieved".to_string(), "abandoned".to_string()],
                 &goal.status.to_string(),
             ),
-            FormField::text("Due date", &goal.due_date.map_or(String::new(), |d| d.to_string()), false),
-            FormField::text("Tags", &goal.tags.join(", "), false),
+            FormField::text("Due date", &goal.due_date.map_or(String::new(), |d| d.to_string()), false, "YYYY-MM-DD"),
+            FormField::text("Tags", &goal.tags.join(", "), false, "tag1, tag2"),
         ])
     }
 
     fn submit_add(&mut self, db: &Database) {
-        let form = match self.form.as_ref() { Some(f) => f, None => return };
-        let title = form.value("Title").to_string();
-        if title.is_empty() { self.status_msg = Some("Title is required.".to_string()); return; }
+        let form = match self.form.as_mut() { Some(f) => f, None => return };
+        form.clear_errors();
+        let title = match form.require_non_empty("Title") { Some(t) => t, None => return };
 
         let due_date = match crate::cli::parse_date_opt(&form.value_opt("Due date").map(|s| s.to_string())) {
-            Ok(d) => d, Err(e) => { self.status_msg = Some(format!("Error: {e}")); return; }
+            Ok(d) => d, Err(e) => { form.set_field_error("Due date", format!("{e}")); return; }
         };
 
+        let situation = form.value_opt("Situation").map(|s| s.to_string());
+        let task = form.value_opt("Task").map(|s| s.to_string());
         let tag_names = crate::cli::parse_comma_tags(form.value("Tags"));
 
         match GoalRepository::create(db, CreateGoal {
-            title: title.clone(),
-            situation: form.value_opt("Situation").map(|s| s.to_string()),
-            task: form.value_opt("Task").map(|s| s.to_string()),
-            action: None, result: None, due_date,
+            title: title.clone(), situation, task, action: None, result: None, due_date,
         }) {
             Ok(g) => {
                 if !tag_names.is_empty() {
@@ -101,24 +120,24 @@ impl GoalView {
     }
 
     fn submit_edit(&mut self, db: &Database) {
-        let (form, edit_id) = match (self.form.as_ref(), self.edit_id) { (Some(f), Some(id)) => (f, id), _ => return };
-        let title = form.value("Title").to_string();
-        if title.is_empty() { self.status_msg = Some("Title is required.".to_string()); return; }
+        let edit_id = match self.edit_id { Some(id) => id, None => return };
+        let form = match self.form.as_mut() { Some(f) => f, None => return };
+        form.clear_errors();
+        let title = match form.require_non_empty("Title") { Some(t) => t, None => return };
 
         let status = form.value("Status").parse::<GoalStatus>().ok();
         let due_date = match crate::cli::parse_date_opt(&form.value_opt("Due date").map(|s| s.to_string())) {
-            Ok(d) => d, Err(e) => { self.status_msg = Some(format!("Error: {e}")); return; }
+            Ok(d) => d, Err(e) => { form.set_field_error("Due date", format!("{e}")); return; }
         };
 
+        let situation = Some(form.value_opt("Situation").map(|s| s.to_string()));
+        let task = Some(form.value_opt("Task").map(|s| s.to_string()));
+        let action = Some(form.value_opt("Action").map(|s| s.to_string()));
+        let result = Some(form.value_opt("Result").map(|s| s.to_string()));
         let tag_names = crate::cli::parse_comma_tags(form.value("Tags"));
 
         match GoalRepository::update(db, edit_id, UpdateGoal {
-            title: Some(title),
-            situation: Some(form.value_opt("Situation").map(|s| s.to_string())),
-            task: Some(form.value_opt("Task").map(|s| s.to_string())),
-            action: Some(form.value_opt("Action").map(|s| s.to_string())),
-            result: Some(form.value_opt("Result").map(|s| s.to_string())),
-            status, due_date: Some(due_date),
+            title: Some(title), situation, task, action, result, status, due_date: Some(due_date),
         }) {
             Ok(_) => {
                 let _ = TagRepository::set_tags_by_name(db, EntityType::Goal, edit_id, &tag_names);
@@ -132,6 +151,7 @@ impl GoalView {
 
 impl View for GoalView {
     fn draw(&mut self, frame: &mut Frame, area: Rect, db: &Database) {
+        if !self.loaded { self.reload(db); self.loaded = true; }
         match self.mode {
             ViewMode::List => {
                 let vertical = Layout::vertical([Constraint::Min(0), Constraint::Length(1), Constraint::Length(1)]).split(area);
@@ -159,14 +179,14 @@ impl View for GoalView {
     }
 
     fn handle_key(&mut self, key: KeyEvent, db: &Database) -> ViewAction {
-        if !self.loaded { self.reload(db); self.loaded = true; }
         match self.mode {
             ViewMode::List => {
                 if self.list.is_searching() {
                     use crate::tui::widgets::list::SearchAction;
-                    match self.list.handle_search_key(key, |g| format!("{} {}", g.title, g.tags.join(" "))) {
-                        SearchAction::ExitWithSelection if self.list.selected().is_some() => { self.mode = ViewMode::Detail; }
-                        _ => {}
+                    if let SearchAction::ExitWithSelection = self.list.handle_search_key(key, |g| format!("{} {}", g.title, g.tags.join(" "))) {
+                        if let Some(id) = self.list.selected().map(|g| g.id) {
+                            self.open_edit_by_id(id);
+                        }
                     }
                     return ViewAction::Nothing;
                 }
@@ -177,7 +197,7 @@ impl View for GoalView {
                     KeyCode::Enter => { if self.list.selected().is_some() { self.mode = ViewMode::Detail; } ViewAction::Nothing }
                     KeyCode::Char('a') => { self.form = Some(Self::build_add_form()); self.mode = ViewMode::Add; ViewAction::Nothing }
                     KeyCode::Char('e') => {
-                        if let Some(g) = self.list.selected() { self.edit_id = Some(g.id); self.form = Some(Self::build_edit_form(g)); self.mode = ViewMode::Edit; }
+                        if let Some(id) = self.list.selected().map(|g| g.id) { self.open_edit_by_id(id); }
                         ViewAction::Nothing
                     }
                     KeyCode::Delete => {
@@ -299,10 +319,7 @@ fn draw_detail(frame: &mut Frame, area: Rect, goal: &Goal, db: &Database) {
 mod tests {
     use super::*;
     use crate::db::goal::{CreateGoal, GoalRepository};
-    use crossterm::event::KeyModifiers;
-
-    fn test_db() -> Database { Database::open_in_memory().unwrap() }
-    fn key(code: KeyCode) -> KeyEvent { KeyEvent::new(code, KeyModifiers::NONE) }
+    use crate::tui::testutil::{key, test_db};
 
     fn seeded_db() -> Database {
         let db = test_db();
@@ -320,7 +337,7 @@ mod tests {
     fn loads_and_navigates() {
         let db = seeded_db();
         let mut v = GoalView::new();
-        v.handle_key(key(KeyCode::Down), &db);
+        v.reload(&db);
         assert_eq!(v.list.items().len(), 1);
     }
 
@@ -353,5 +370,118 @@ mod tests {
         let mut out = String::new();
         for y in 0..buf.area.height { for x in 0..buf.area.width { out.push_str(buf[(x, y)].symbol()); } }
         assert!(out.contains("Ship feature"));
+    }
+
+    #[test]
+    fn loads_on_first_draw() {
+        let db = seeded_db();
+        let mut v = GoalView::new();
+        let backend = ratatui::backend::TestBackend::new(100, 20);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        terminal.draw(|f| v.draw(f, f.area(), &db)).unwrap();
+        assert!(!v.list.items().is_empty());
+    }
+
+    #[test]
+    fn e_opens_edit() {
+        let db = seeded_db();
+        let mut v = GoalView::new();
+        v.reload(&db);
+        v.handle_key(key(KeyCode::Char('e')), &db);
+        assert!(matches!(v.mode, ViewMode::Edit));
+        assert!(v.edit_id.is_some());
+    }
+
+    #[test]
+    fn search_enter_opens_edit() {
+        let db = seeded_db();
+        let mut v = GoalView::new();
+        v.reload(&db);
+        v.handle_key(key(KeyCode::Char('/')), &db);
+        v.handle_key(key(KeyCode::Char('S')), &db);
+        v.handle_key(key(KeyCode::Char('h')), &db);
+        v.handle_key(key(KeyCode::Char('i')), &db);
+        v.handle_key(key(KeyCode::Char('p')), &db);
+        v.handle_key(key(KeyCode::Enter), &db);
+        assert!(matches!(v.mode, ViewMode::Edit));
+    }
+
+    #[test]
+    fn submit_add_missing_title() {
+        let db = test_db();
+        let mut v = GoalView::new();
+        v.handle_key(key(KeyCode::Char('a')), &db);
+        assert!(matches!(v.mode, ViewMode::Add));
+        // Goal add form has 5 fields (Title, Situation, Task, Due date, Tags).
+        // Navigate to last field (index 4) and press Enter to submit.
+        for _ in 0..4 {
+            v.handle_key(key(KeyCode::Tab), &db);
+        }
+        v.handle_key(key(KeyCode::Enter), &db);
+        assert!(matches!(v.mode, ViewMode::Add));
+        let form = v.form.as_ref().unwrap();
+        let title_field = form.fields.iter().find(|f| f.label == "Title").unwrap();
+        assert!(title_field.error.is_some());
+    }
+
+    #[test]
+    fn submit_add_invalid_due_date() {
+        let db = test_db();
+        let mut v = GoalView::new();
+        v.handle_key(key(KeyCode::Char('a')), &db);
+        // Type a title.
+        for c in "My Goal".chars() {
+            v.handle_key(key(KeyCode::Char(c)), &db);
+        }
+        // Navigate to Due date field (index 3): 3 Tabs from index 0.
+        for _ in 0..3 {
+            v.handle_key(key(KeyCode::Tab), &db);
+        }
+        // Type invalid date.
+        for c in "notadate".chars() {
+            v.handle_key(key(KeyCode::Char(c)), &db);
+        }
+        // Navigate to last field (Tags, index 4) and submit.
+        v.handle_key(key(KeyCode::Tab), &db);
+        v.handle_key(key(KeyCode::Enter), &db);
+        assert!(matches!(v.mode, ViewMode::Add));
+        let form = v.form.as_ref().unwrap();
+        let due_field = form.fields.iter().find(|f| f.label == "Due date").unwrap();
+        assert!(due_field.error.is_some());
+    }
+
+    #[test]
+    fn submit_add_success() {
+        let db = test_db();
+        let mut v = GoalView::new();
+        v.reload(&db);
+        assert_eq!(v.list.items().len(), 0);
+        v.handle_key(key(KeyCode::Char('a')), &db);
+        // Type a title.
+        for c in "Launch app".chars() {
+            v.handle_key(key(KeyCode::Char(c)), &db);
+        }
+        // Navigate to last field (Tags, index 4) and submit.
+        for _ in 0..4 {
+            v.handle_key(key(KeyCode::Tab), &db);
+        }
+        v.handle_key(key(KeyCode::Enter), &db);
+        assert!(matches!(v.mode, ViewMode::List));
+        assert_eq!(v.list.items().len(), 1);
+    }
+
+    #[test]
+    fn delete_and_restore() {
+        let db = seeded_db();
+        let mut v = GoalView::new();
+        v.reload(&db);
+        assert_eq!(v.list.items().len(), 1);
+        v.handle_key(key(KeyCode::Delete), &db);
+        assert_eq!(v.list.items().len(), 0);
+        v.handle_key(key(KeyCode::Char('d')), &db);
+        assert_eq!(v.list.items().len(), 1);
+        v.handle_key(key(KeyCode::Char('R')), &db);
+        v.handle_key(key(KeyCode::Char('d')), &db);
+        assert_eq!(v.list.items().len(), 1);
     }
 }

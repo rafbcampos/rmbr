@@ -51,15 +51,17 @@ impl<T> SelectableList<T> {
         self.filtered_indices = (0..self.items.len()).collect();
     }
 
-    /// Stops search mode and resets the filter.
+    /// Stops search mode and resets the filter, preserving the selected item.
     pub fn stop_search(&mut self) {
+        // Map filtered selection back to the real item index before clearing.
+        let real_index = self.state.selected()
+            .and_then(|vis| self.filtered_indices.get(vis).copied());
         self.searching = false;
         self.search_query.clear();
         self.filtered_indices.clear();
-        // Reset selection to first item.
-        if !self.items.is_empty() {
-            self.state.select(Some(0));
-        }
+
+        let fallback = if self.items.is_empty() { None } else { Some(0) };
+        self.state.select(real_index.or(fallback));
     }
 
     /// Updates the search query and refilters. `text_fn` extracts searchable text from each item.
@@ -423,5 +425,34 @@ mod tests {
         list.select_first();
         list.select_last();
         assert!(list.selected().is_none());
+    }
+
+    #[test]
+    fn stop_search_preserves_selected_item() {
+        let mut list = SelectableList::new("Test");
+        list.set_items(vec!["alpha", "beta", "gamma"]);
+
+        list.start_search();
+        // Simulate a filter that only matches "gamma" (index 2).
+        list.filtered_indices = vec![2];
+        list.state.select(Some(0)); // visible index 0 → real index 2
+
+        list.stop_search();
+        // After stopping, the real item at index 2 should be selected.
+        assert_eq!(list.selected(), Some(&"gamma"));
+        assert_eq!(list.selected_index(), Some(2));
+    }
+
+    #[test]
+    fn stop_search_falls_back_to_first_when_no_selection() {
+        let mut list = SelectableList::new("Test");
+        list.set_items(vec!["alpha", "beta"]);
+
+        list.start_search();
+        list.filtered_indices.clear();
+        list.state.select(None);
+
+        list.stop_search();
+        assert_eq!(list.selected(), Some(&"alpha"));
     }
 }

@@ -14,11 +14,13 @@ use crate::db::{Database, DatabaseError};
 
 // --- Shared helpers for CLI handlers ----------------------------------------
 
-/// Parses a YYYY-MM-DD string into a NaiveDate.
+/// Parses a date string into a NaiveDate. Accepts YYYY-MM-DD or YYYYMMDD.
 pub fn parse_date(s: &str) -> Result<NaiveDate, DatabaseError> {
-    NaiveDate::parse_from_str(s, "%Y-%m-%d").map_err(|_| DatabaseError::InvalidInput {
-        message: format!("invalid date '{s}', expected YYYY-MM-DD"),
-    })
+    NaiveDate::parse_from_str(s, "%Y-%m-%d")
+        .or_else(|_| NaiveDate::parse_from_str(s, "%Y%m%d"))
+        .map_err(|_| DatabaseError::InvalidInput {
+            message: format!("invalid date '{s}', expected YYYY-MM-DD or YYYYMMDD"),
+        })
 }
 
 /// Parses an optional date string.
@@ -136,6 +138,44 @@ pub fn parse_comma_tags(input: &str) -> Vec<String> {
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::NaiveDate;
+
+    #[test]
+    fn parse_date_dashed_format() {
+        let result = parse_date("2026-04-08");
+        assert_eq!(result.unwrap(), NaiveDate::from_ymd_opt(2026, 4, 8).unwrap());
+    }
+
+    #[test]
+    fn parse_date_compact_format() {
+        let result = parse_date("20260408");
+        assert_eq!(result.unwrap(), NaiveDate::from_ymd_opt(2026, 4, 8).unwrap());
+    }
+
+    #[test]
+    fn parse_date_invalid_shows_both_formats() {
+        let result = parse_date("bad-date");
+        let err = result.unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("YYYY-MM-DD"), "error should mention dashed format: {msg}");
+        assert!(msg.contains("YYYYMMDD"), "error should mention compact format: {msg}");
+    }
+
+    #[test]
+    fn parse_date_opt_none_returns_none() {
+        assert_eq!(parse_date_opt(&None).unwrap(), None);
+    }
+
+    #[test]
+    fn parse_date_opt_some_valid() {
+        let result = parse_date_opt(&Some("20260408".to_string()));
+        assert_eq!(result.unwrap(), Some(NaiveDate::from_ymd_opt(2026, 4, 8).unwrap()));
+    }
 }
 
 #[derive(Parser)]

@@ -220,19 +220,18 @@ impl View for DashboardView {
         if self.searching {
             if let Some(ref mut picker) = self.picker {
                 match picker.handle_key(key) {
-                    PickerAction::Selected(_id) => {
-                        // Navigate to the entity view based on the label prefix.
-                        // We encoded the type in the label as "[todo]", "[goal]", etc.
+                    PickerAction::Selected(id) => {
+                        // Open the edit form for the selected item based on the label prefix.
                         if let Some(item) = self.picker.as_ref().and_then(|p| p.selected_item()) {
                             let label = &item.label;
                             let view: Box<dyn View> = if label.starts_with("[todo]") {
-                                Box::new(super::todo::TodoView::new())
+                                Box::new(super::todo::TodoView::editing(db, id))
                             } else if label.starts_with("[goal]") {
-                                Box::new(super::goal::GoalView::new())
+                                Box::new(super::goal::GoalView::editing(db, id))
                             } else if label.starts_with("[kudo]") {
-                                Box::new(super::kudo::KudoView::new())
+                                Box::new(super::kudo::KudoView::editing(db, id))
                             } else {
-                                Box::new(super::til::TilView::new())
+                                Box::new(super::til::TilView::editing(db, id))
                             };
                             self.picker = None;
                             self.searching = false;
@@ -279,7 +278,7 @@ fn status_icon(status: GoalStatus) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use crossterm::event::KeyCode;
     use ratatui::backend::TestBackend;
     use ratatui::Terminal;
 
@@ -290,14 +289,7 @@ mod tests {
     use crate::db::todo::{CreateTodo, TodoRepository};
     use crate::models::til::TilCategory;
     use crate::models::todo::Priority;
-
-    fn test_db() -> Database {
-        Database::open_in_memory().unwrap()
-    }
-
-    fn key(code: KeyCode) -> KeyEvent {
-        KeyEvent::new(code, KeyModifiers::NONE)
-    }
+    use crate::tui::testutil::{key, test_db};
 
     fn seed_data(db: &Database) {
         TodoRepository::create(

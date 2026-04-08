@@ -47,6 +47,26 @@ impl TodoView {
         }
     }
 
+    /// Creates a view that opens directly into Edit mode for the given item.
+    pub fn editing(db: &Database, id: i64) -> Self {
+        let mut view = Self::new();
+        view.reload(db);
+        view.loaded = true;
+        view.open_edit_by_id(id);
+        view
+    }
+
+    /// Switches to Edit mode for the item with the given `id`, if present in the list.
+    fn open_edit_by_id(&mut self, id: i64) {
+        if let Some(todo) = self.list.items().iter().find(|t| t.id == id) {
+            self.edit_id = Some(todo.id);
+            self.form = Some(Self::build_edit_form(todo));
+            self.mode = ViewMode::Edit;
+        } else {
+            self.status_msg = Some(format!("Todo #{id} not found."));
+        }
+    }
+
     fn reload(&mut self, db: &Database) {
         let todos = TodoRepository::list(db, TodoFilter {
             include_deleted: self.show_deleted,
@@ -84,8 +104,8 @@ impl TodoView {
         Form::new(
             "Add Todo",
             vec![
-                FormField::text("Title", "", true),
-                FormField::text("Description", "", false),
+                FormField::text("Title", "", true, ""),
+                FormField::text("Description", "", false, ""),
                 FormField::select(
                     "Priority",
                     vec![
@@ -96,8 +116,8 @@ impl TodoView {
                     ],
                     "medium",
                 ),
-                FormField::text("Due date", "", false),
-                FormField::text("Tags", "", false),
+                FormField::text("Due date", "", false, "YYYY-MM-DD"),
+                FormField::text("Tags", "", false, "tag1, tag2"),
             ],
         )
     }
@@ -106,11 +126,12 @@ impl TodoView {
         Form::new(
             "Edit Todo",
             vec![
-                FormField::text("Title", &todo.title, true),
+                FormField::text("Title", &todo.title, true, ""),
                 FormField::text(
                     "Description",
                     todo.description.as_deref().unwrap_or(""),
                     false,
+                    "",
                 ),
                 FormField::select(
                     "Priority",
@@ -126,23 +147,24 @@ impl TodoView {
                     "Due date",
                     &todo.due_date.map_or(String::new(), |d| d.to_string()),
                     false,
+                    "YYYY-MM-DD",
                 ),
-                FormField::text("Tags", &todo.tags.join(", "), false),
+                FormField::text("Tags", &todo.tags.join(", "), false, "tag1, tag2"),
             ],
         )
     }
 
     fn submit_add(&mut self, db: &Database) {
-        let form = match self.form.as_ref() {
+        let form = match self.form.as_mut() {
             Some(f) => f,
             None => return,
         };
+        form.clear_errors();
 
-        let title = form.value("Title").to_string();
-        if title.is_empty() {
-            self.status_msg = Some("Title is required.".to_string());
-            return;
-        }
+        let title = match form.require_non_empty("Title") {
+            Some(t) => t,
+            None => return,
+        };
 
         let priority = form.value("Priority").parse::<Priority>().unwrap_or(Priority::Medium);
         let due_date = crate::cli::parse_date_opt(
@@ -151,7 +173,7 @@ impl TodoView {
         let due_date = match due_date {
             Ok(d) => d,
             Err(e) => {
-                self.status_msg = Some(format!("Error: {e}"));
+                form.set_field_error("Due date", format!("{e}"));
                 return;
             }
         };
@@ -180,31 +202,31 @@ impl TodoView {
     }
 
     fn submit_edit(&mut self, db: &Database) {
-        let (form, edit_id) = match (self.form.as_ref(), self.edit_id) {
-            (Some(f), Some(id)) => (f, id),
-            _ => return,
+        let edit_id = match self.edit_id {
+            Some(id) => id,
+            None => return,
+        };
+        let form = match self.form.as_mut() {
+            Some(f) => f,
+            None => return,
+        };
+        form.clear_errors();
+
+        let title = match form.require_non_empty("Title") {
+            Some(t) => t,
+            None => return,
         };
 
-        let title = form.value("Title").to_string();
-        if title.is_empty() {
-            self.status_msg = Some("Title is required.".to_string());
-            return;
-        }
-
         let priority = form.value("Priority").parse::<Priority>().unwrap_or(Priority::Medium);
-        let due_date = crate::cli::parse_date_opt(
-            &form.value_opt("Due date").map(|s| s.to_string()),
-        );
-        let due_date = match due_date {
+        let due_date = match crate::cli::parse_date_opt(&form.value_opt("Due date").map(|s| s.to_string())) {
             Ok(d) => d,
             Err(e) => {
-                self.status_msg = Some(format!("Error: {e}"));
+                form.set_field_error("Due date", format!("{e}"));
                 return;
             }
         };
 
         let description = form.value_opt("Description").map(|s| s.to_string());
-
         let tag_names = crate::cli::parse_comma_tags(form.value("Tags"));
 
         match TodoRepository::update(
@@ -235,6 +257,11 @@ impl TodoView {
 
 impl View for TodoView {
     fn draw(&mut self, frame: &mut Frame, area: Rect, db: &Database) {
+        if !self.loaded {
+            self.reload(db);
+            self.loaded = true;
+        }
+
         match self.mode {
             ViewMode::List => {
                 // Refresh durations for in-progress todos (live timer on tick).
@@ -270,12 +297,6 @@ impl View for TodoView {
     }
 
     fn handle_key(&mut self, key: KeyEvent, db: &Database) -> ViewAction {
-        // First draw triggers data load.
-        if !self.loaded {
-            self.reload(db);
-            self.loaded = true;
-        }
-
         match self.mode {
             ViewMode::List => self.handle_list_key(key, db),
             ViewMode::Detail => self.handle_detail_key(key, db),
@@ -290,11 +311,10 @@ impl TodoView {
     fn handle_list_key(&mut self, key: KeyEvent, db: &Database) -> ViewAction {
         if self.list.is_searching() {
             use crate::tui::widgets::list::SearchAction;
-            match self.list.handle_search_key(key, |t| format!("{} {}", t.title, t.tags.join(" "))) {
-                SearchAction::ExitWithSelection if self.list.selected().is_some() => {
-                    self.mode = ViewMode::Detail;
+            if let SearchAction::ExitWithSelection = self.list.handle_search_key(key, |t| format!("{} {}", t.title, t.tags.join(" "))) {
+                if let Some(id) = self.list.selected().map(|t| t.id) {
+                    self.open_edit_by_id(id);
                 }
-                _ => {}
             }
             return ViewAction::Nothing;
         }
@@ -323,10 +343,8 @@ impl TodoView {
                 ViewAction::Nothing
             }
             KeyCode::Char('e') => {
-                if let Some(todo) = self.list.selected() {
-                    self.edit_id = Some(todo.id);
-                    self.form = Some(Self::build_edit_form(todo));
-                    self.mode = ViewMode::Edit;
+                if let Some(id) = self.list.selected().map(|t| t.id) {
+                    self.open_edit_by_id(id);
                 }
                 ViewAction::Nothing
             }
@@ -651,16 +669,7 @@ fn draw_detail(frame: &mut Frame, area: Rect, todo: &Todo, db: &Database) {
 mod tests {
     use super::*;
     use crate::db::todo::{CreateTodo, TodoRepository};
-    use crate::db::Database;
-    use crossterm::event::KeyModifiers;
-
-    fn test_db() -> Database {
-        Database::open_in_memory().unwrap()
-    }
-
-    fn key(code: KeyCode) -> KeyEvent {
-        KeyEvent::new(code, KeyModifiers::NONE)
-    }
+    use crate::tui::testutil::{key, test_db};
 
     fn seeded_db() -> Database {
         let db = test_db();
@@ -702,12 +711,14 @@ mod tests {
     }
 
     #[test]
-    fn loads_data_on_first_key() {
+    fn loads_data_on_first_draw() {
         let db = seeded_db();
         let mut view = TodoView::new();
         assert!(view.list.items().is_empty());
 
-        view.handle_key(key(KeyCode::Down), &db);
+        let backend = ratatui::backend::TestBackend::new(100, 20);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        terminal.draw(|frame| view.draw(frame, frame.area(), &db)).unwrap();
         assert_eq!(view.list.items().len(), 2);
     }
 
@@ -715,7 +726,7 @@ mod tests {
     fn enter_switches_to_detail() {
         let db = seeded_db();
         let mut view = TodoView::new();
-        view.handle_key(key(KeyCode::Down), &db); // load + select
+        view.reload(&db);
         view.handle_key(key(KeyCode::Enter), &db);
         assert!(matches!(view.mode, ViewMode::Detail));
     }
@@ -724,7 +735,7 @@ mod tests {
     fn esc_from_detail_returns_to_list() {
         let db = seeded_db();
         let mut view = TodoView::new();
-        view.handle_key(key(KeyCode::Down), &db);
+        view.reload(&db);
         view.handle_key(key(KeyCode::Enter), &db); // detail mode
         view.handle_key(key(KeyCode::Esc), &db);
         assert!(matches!(view.mode, ViewMode::List));
@@ -743,7 +754,7 @@ mod tests {
     fn e_opens_edit_form() {
         let db = seeded_db();
         let mut view = TodoView::new();
-        view.handle_key(key(KeyCode::Down), &db); // load
+        view.reload(&db);
         view.handle_key(key(KeyCode::Char('e')), &db);
         assert!(matches!(view.mode, ViewMode::Edit));
         assert!(view.edit_id.is_some());
@@ -771,7 +782,7 @@ mod tests {
     fn invalid_transition_shows_error() {
         let db = seeded_db();
         let mut view = TodoView::new();
-        view.handle_key(key(KeyCode::Down), &db); // load
+        view.reload(&db);
         // Try to pause a pending todo — invalid transition.
         view.handle_key(key(KeyCode::Char('p')), &db);
         assert!(view.status_msg.as_ref().unwrap().contains("Error"));
@@ -781,7 +792,7 @@ mod tests {
     fn delete_key_soft_deletes() {
         let db = seeded_db();
         let mut view = TodoView::new();
-        view.handle_key(key(KeyCode::Down), &db); // load
+        view.reload(&db);
         view.handle_key(key(KeyCode::Delete), &db);
 
         // Should have 1 todo left (deleted one is filtered out).
@@ -811,5 +822,345 @@ mod tests {
 
         assert!(output.contains("First"), "should render first todo");
         assert!(output.contains("Second"), "should render second todo");
+    }
+
+    #[test]
+    fn search_enter_opens_edit() {
+        let db = seeded_db();
+        let mut view = TodoView::new();
+        view.reload(&db);
+
+        // Start search, type 'F' to filter to "First".
+        view.handle_key(key(KeyCode::Char('/')), &db);
+        assert!(view.list.is_searching());
+
+        view.handle_key(key(KeyCode::Char('F')), &db);
+        view.handle_key(key(KeyCode::Char('i')), &db);
+        view.handle_key(key(KeyCode::Char('r')), &db);
+
+        // Press Enter to confirm search selection.
+        view.handle_key(key(KeyCode::Enter), &db);
+
+        assert!(matches!(view.mode, ViewMode::Edit), "search enter should open edit mode");
+        assert!(view.form.is_some(), "edit form should be present");
+        assert!(view.edit_id.is_some(), "edit_id should be set");
+    }
+
+    // --- Form validation tests ------------------------------------------------
+
+    #[test]
+    fn submit_add_empty_title_shows_field_error() {
+        let db = test_db();
+        let mut view = TodoView::new();
+        // Open add form.
+        view.handle_key(key(KeyCode::Char('a')), &db);
+        assert!(matches!(view.mode, ViewMode::Add));
+
+        // Navigate to Tags (last field, index 4) without typing anything.
+        // Fields: Title(0) -> Description(1) -> Priority(2) -> Due date(3) -> Tags(4)
+        view.handle_key(key(KeyCode::Tab), &db); // -> Description
+        view.handle_key(key(KeyCode::Tab), &db); // -> Priority
+        view.handle_key(key(KeyCode::Tab), &db); // -> Due date
+        view.handle_key(key(KeyCode::Tab), &db); // -> Tags
+
+        // Submit from last field.
+        view.handle_key(key(KeyCode::Enter), &db);
+
+        // Should still be in Add mode with a field error on Title.
+        assert!(matches!(view.mode, ViewMode::Add));
+        let title_error = view
+            .form
+            .as_ref()
+            .unwrap()
+            .fields
+            .iter()
+            .find(|f| f.label == "Title")
+            .unwrap()
+            .error
+            .as_deref();
+        assert_eq!(title_error, Some("Title is required."));
+    }
+
+    #[test]
+    fn submit_add_invalid_date_shows_field_error() {
+        let db = test_db();
+        let mut view = TodoView::new();
+        view.handle_key(key(KeyCode::Char('a')), &db);
+
+        // Type a title.
+        view.handle_key(key(KeyCode::Char('T')), &db);
+        view.handle_key(key(KeyCode::Char('e')), &db);
+        view.handle_key(key(KeyCode::Char('s')), &db);
+        view.handle_key(key(KeyCode::Char('t')), &db);
+
+        // Tab to Due date (index 3).
+        view.handle_key(key(KeyCode::Tab), &db); // -> Description
+        view.handle_key(key(KeyCode::Tab), &db); // -> Priority
+        view.handle_key(key(KeyCode::Tab), &db); // -> Due date
+
+        // Type an invalid date.
+        for c in "baddate".chars() {
+            view.handle_key(key(KeyCode::Char(c)), &db);
+        }
+
+        // Tab to Tags, then submit.
+        view.handle_key(key(KeyCode::Tab), &db); // -> Tags
+        view.handle_key(key(KeyCode::Enter), &db);
+
+        // Should still be in Add mode.
+        assert!(matches!(view.mode, ViewMode::Add));
+        let due_error = view
+            .form
+            .as_ref()
+            .unwrap()
+            .fields
+            .iter()
+            .find(|f| f.label == "Due date")
+            .unwrap()
+            .error
+            .as_deref()
+            .expect("Due date field should have an error");
+        assert!(
+            due_error.contains("invalid date"),
+            "error should mention 'invalid date', got: {due_error}"
+        );
+    }
+
+    #[test]
+    fn submit_add_compact_date_works() {
+        let db = test_db();
+        let mut view = TodoView::new();
+        view.handle_key(key(KeyCode::Char('a')), &db);
+
+        // Type title "CompactDate".
+        for c in "CompactDate".chars() {
+            view.handle_key(key(KeyCode::Char(c)), &db);
+        }
+
+        // Tab past Description, Priority to Due date.
+        view.handle_key(key(KeyCode::Tab), &db); // -> Description
+        view.handle_key(key(KeyCode::Tab), &db); // -> Priority
+        view.handle_key(key(KeyCode::Tab), &db); // -> Due date
+
+        // Type compact date.
+        for c in "20260408".chars() {
+            view.handle_key(key(KeyCode::Char(c)), &db);
+        }
+
+        // Tab to Tags (last field), then submit.
+        view.handle_key(key(KeyCode::Tab), &db); // -> Tags
+        view.handle_key(key(KeyCode::Enter), &db);
+
+        // Should succeed — back to list.
+        assert!(matches!(view.mode, ViewMode::List), "mode should be List after successful add");
+        assert_eq!(view.list.items().len(), 1, "list should have 1 todo");
+        assert_eq!(view.list.items()[0].title, "CompactDate");
+    }
+
+    #[test]
+    fn submit_add_success_reloads_list() {
+        let db = seeded_db();
+        let mut view = TodoView::new();
+        view.reload(&db);
+        assert_eq!(view.list.items().len(), 2);
+
+        // Open add form.
+        view.handle_key(key(KeyCode::Char('a')), &db);
+
+        // Type title "Third".
+        for c in "Third".chars() {
+            view.handle_key(key(KeyCode::Char(c)), &db);
+        }
+
+        // Navigate to last field and submit.
+        view.handle_key(key(KeyCode::Tab), &db); // -> Description
+        view.handle_key(key(KeyCode::Tab), &db); // -> Priority
+        view.handle_key(key(KeyCode::Tab), &db); // -> Due date
+        view.handle_key(key(KeyCode::Tab), &db); // -> Tags
+        view.handle_key(key(KeyCode::Enter), &db);
+
+        assert!(matches!(view.mode, ViewMode::List));
+        assert_eq!(view.list.items().len(), 3, "list should have 3 items after add");
+        assert!(
+            view.status_msg.as_ref().unwrap().contains("created"),
+            "status should mention 'created', got: {:?}",
+            view.status_msg
+        );
+    }
+
+    #[test]
+    fn submit_edit_invalid_date_shows_field_error() {
+        let db = seeded_db();
+        let mut view = TodoView::new();
+        view.reload(&db);
+
+        // Open edit form on the selected item.
+        view.handle_key(key(KeyCode::Char('e')), &db);
+        assert!(matches!(view.mode, ViewMode::Edit));
+
+        // Navigate to Due date field (index 3).
+        view.handle_key(key(KeyCode::Tab), &db); // -> Description
+        view.handle_key(key(KeyCode::Tab), &db); // -> Priority
+        view.handle_key(key(KeyCode::Tab), &db); // -> Due date
+
+        // Type an invalid date.
+        for c in "notadate".chars() {
+            view.handle_key(key(KeyCode::Char(c)), &db);
+        }
+
+        // Navigate to Tags and submit.
+        view.handle_key(key(KeyCode::Tab), &db); // -> Tags
+        view.handle_key(key(KeyCode::Enter), &db);
+
+        // Should still be in Edit mode with an error on Due date.
+        assert!(matches!(view.mode, ViewMode::Edit));
+        let due_error = view
+            .form
+            .as_ref()
+            .unwrap()
+            .fields
+            .iter()
+            .find(|f| f.label == "Due date")
+            .unwrap()
+            .error
+            .as_deref()
+            .expect("Due date field should have an error");
+        assert!(
+            due_error.contains("invalid date"),
+            "error should mention 'invalid date', got: {due_error}"
+        );
+    }
+
+    #[test]
+    fn field_error_clears_on_typing() {
+        let db = test_db();
+        let mut view = TodoView::new();
+        view.handle_key(key(KeyCode::Char('a')), &db);
+
+        // Submit with empty title to trigger an error.
+        // Navigate to last field and submit.
+        view.handle_key(key(KeyCode::Tab), &db); // -> Description
+        view.handle_key(key(KeyCode::Tab), &db); // -> Priority
+        view.handle_key(key(KeyCode::Tab), &db); // -> Due date
+        view.handle_key(key(KeyCode::Tab), &db); // -> Tags
+        view.handle_key(key(KeyCode::Enter), &db);
+
+        // Confirm Title has an error.
+        let title_has_error = view
+            .form
+            .as_ref()
+            .unwrap()
+            .fields
+            .iter()
+            .find(|f| f.label == "Title")
+            .unwrap()
+            .error
+            .is_some();
+        assert!(title_has_error, "Title should have an error after empty submit");
+
+        // Navigate back to Title field (BackTab from Tags -> Due date -> Priority -> Description -> Title).
+        view.handle_key(key(KeyCode::BackTab), &db);
+        view.handle_key(key(KeyCode::BackTab), &db);
+        view.handle_key(key(KeyCode::BackTab), &db);
+        view.handle_key(key(KeyCode::BackTab), &db);
+
+        // Type a character — this should clear the error.
+        view.handle_key(key(KeyCode::Char('X')), &db);
+
+        let title_error_after = view
+            .form
+            .as_ref()
+            .unwrap()
+            .fields
+            .iter()
+            .find(|f| f.label == "Title")
+            .unwrap()
+            .error
+            .as_deref();
+        assert_eq!(title_error_after, None, "error should clear after typing");
+    }
+
+    // --- Navigation flow tests ------------------------------------------------
+
+    #[test]
+    fn search_preserves_selection_after_exit() {
+        let db = test_db();
+        // Create 3 todos with distinct names.
+        TodoRepository::create(
+            &db,
+            CreateTodo {
+                title: "AAA".to_string(),
+                description: None,
+                priority: Priority::Low,
+                due_date: None,
+            },
+        )
+        .unwrap();
+        TodoRepository::create(
+            &db,
+            CreateTodo {
+                title: "BBB".to_string(),
+                description: None,
+                priority: Priority::Medium,
+                due_date: None,
+            },
+        )
+        .unwrap();
+        let ccc = TodoRepository::create(
+            &db,
+            CreateTodo {
+                title: "CCC".to_string(),
+                description: None,
+                priority: Priority::High,
+                due_date: None,
+            },
+        )
+        .unwrap();
+
+        let mut view = TodoView::new();
+        view.reload(&db);
+        assert_eq!(view.list.items().len(), 3);
+
+        // Start search, type "CCC".
+        view.handle_key(key(KeyCode::Char('/')), &db);
+        assert!(view.list.is_searching());
+
+        view.handle_key(key(KeyCode::Char('C')), &db);
+        view.handle_key(key(KeyCode::Char('C')), &db);
+        view.handle_key(key(KeyCode::Char('C')), &db);
+
+        // Press Enter to confirm — should open edit for CCC.
+        view.handle_key(key(KeyCode::Enter), &db);
+
+        assert!(matches!(view.mode, ViewMode::Edit));
+        assert_eq!(view.edit_id, Some(ccc.id), "edit_id should match CCC's id");
+    }
+
+    #[test]
+    fn esc_from_add_returns_to_list() {
+        let db = test_db();
+        let mut view = TodoView::new();
+        view.handle_key(key(KeyCode::Char('a')), &db);
+        assert!(matches!(view.mode, ViewMode::Add));
+        assert!(view.form.is_some());
+
+        view.handle_key(key(KeyCode::Esc), &db);
+        assert!(matches!(view.mode, ViewMode::List));
+        assert!(view.form.is_none());
+    }
+
+    #[test]
+    fn esc_from_edit_returns_to_list() {
+        let db = seeded_db();
+        let mut view = TodoView::new();
+        view.reload(&db);
+
+        view.handle_key(key(KeyCode::Char('e')), &db);
+        assert!(matches!(view.mode, ViewMode::Edit));
+        assert!(view.form.is_some());
+
+        view.handle_key(key(KeyCode::Esc), &db);
+        assert!(matches!(view.mode, ViewMode::List));
+        assert!(view.form.is_none());
     }
 }
